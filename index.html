@@ -505,10 +505,16 @@
   // ---------- auth ----------
   $('googleSignInBtn').addEventListener('click', function(){
     $('authGateError').textContent = '';
+    $('googleSignInBtn').disabled = true;
     var provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider).catch(function(e){
+    auth.signInWithRedirect(provider).catch(function(e){
       $('authGateError').textContent = '登入失敗：'+e.message;
+      $('googleSignInBtn').disabled = false;
     });
+  });
+  auth.getRedirectResult().catch(function(e){
+    $('authGateError').textContent = '登入失敗：'+e.message;
+    $('googleSignInBtn').disabled = false;
   });
 
   auth.onAuthStateChanged(function(user){
