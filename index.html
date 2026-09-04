@@ -979,9 +979,14 @@
 
     [editDialog, detailDialog, completeDialog, lightbox].forEach(function(dlg){
       dlg.addEventListener('click', function(e){
-        var rect = dlg.getBoundingClientRect();
-        var inside = rect.top <= e.clientY && e.clientY <= rect.top+rect.height && rect.left <= e.clientX && e.clientX <= rect.left+rect.width;
-        if(!inside) dlg.close();
+        // Only treat this as a backdrop click when the click landed directly
+        // on the <dialog> element itself (real backdrop clicks target the
+        // dialog; clicks on anything inside it target that descendant).
+        // Using a coordinate/bounding-box check here is unreliable: a
+        // programmatic click() (e.g. opening the hidden file input) fires a
+        // synthetic click at (0,0) that bubbles up to the dialog and would
+        // be misread as "outside", closing the dialog unexpectedly.
+        if(e.target === dlg) dlg.close();
       });
     });
   }
