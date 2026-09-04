@@ -8,41 +8,41 @@
   @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
 
   :root{
-    --bg:#F6F2E9; --surface:#FFFFFF; --surface-2:#FBF7EF;
-    --border:#E3DAC6; --border-strong:#CDBF9E;
-    --text:#2B2620; --text-muted:#6E6554; --text-faint:#9A9081;
-    --accent:#2B6777; --accent-strong:#1E4C58; --accent-soft:#E4EEEF; --accent-contrast:#FFFFFF;
-    --gold:#A9760C; --gold-strong:#7E590A; --gold-soft:#F5E9CC;
-    --danger:#B23A2A; --danger-soft:#F7E1DC;
-    --warn:#C3760A; --warn-soft:#F8E7CC;
-    --success:#3C7A45; --success-soft:#E4F0E4;
-    --shadow-s:0 1px 2px rgba(43,38,32,.07);
-    --shadow-m:0 10px 30px -14px rgba(43,38,32,.35);
+    --bg:#FAFAFA; --surface:#FFFFFF; --surface-2:#F2F2F2;
+    --border:#E3E3E3; --border-strong:#CACACA;
+    --text:#141414; --text-muted:#5C5C5C; --text-faint:#9A9A9A;
+    --accent:#141414; --accent-strong:#000000; --accent-soft:#EBEBEB; --accent-contrast:#FFFFFF;
+    --gold:#6B6B6B; --gold-strong:#454545; --gold-soft:#EEEEEE;
+    --danger:#C81E1E; --danger-soft:#FBE7E7;
+    --warn:#D6604D; --warn-soft:#FCEDE9;
+    --success:#2E2E2E; --success-soft:#EDEDED;
+    --shadow-s:0 1px 2px rgba(0,0,0,.08);
+    --shadow-m:0 10px 30px -14px rgba(0,0,0,.35);
     --radius-s:7px; --radius-m:12px; --radius-l:18px;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#1A1712; --surface:#242019; --surface-2:#2B261D;
-      --border:#3B3527; --border-strong:#4E4633;
-      --text:#F1ECDF; --text-muted:#BAB09B; --text-faint:#867C68;
-      --accent:#7FC2CE; --accent-strong:#A6DAE3; --accent-soft:#213A3E; --accent-contrast:#0F2226;
-      --gold:#E3B94A; --gold-strong:#F2CE72; --gold-soft:#3A2E14;
-      --danger:#E88A78; --danger-soft:#3A241E;
-      --warn:#E8AC55; --warn-soft:#392B14;
-      --success:#8DCB94; --success-soft:#20321F;
+      --bg:#0D0D0D; --surface:#1A1A1A; --surface-2:#212121;
+      --border:#2C2C2C; --border-strong:#3E3E3E;
+      --text:#F2F2F2; --text-muted:#AFAFAF; --text-faint:#787878;
+      --accent:#F2F2F2; --accent-strong:#FFFFFF; --accent-soft:#242424; --accent-contrast:#0D0D0D;
+      --gold:#9C9C9C; --gold-strong:#D0D0D0; --gold-soft:#242424;
+      --danger:#FF6259; --danger-soft:#3A1815;
+      --warn:#FF8A70; --warn-soft:#3A2016;
+      --success:#D8D8D8; --success-soft:#242424;
       --shadow-s:0 1px 2px rgba(0,0,0,.4);
       --shadow-m:0 10px 30px -14px rgba(0,0,0,.7);
     }
   }
   :root[data-theme="dark"]{
-    --bg:#1A1712; --surface:#242019; --surface-2:#2B261D;
-    --border:#3B3527; --border-strong:#4E4633;
-    --text:#F1ECDF; --text-muted:#BAB09B; --text-faint:#867C68;
-    --accent:#7FC2CE; --accent-strong:#A6DAE3; --accent-soft:#213A3E; --accent-contrast:#0F2226;
-    --gold:#E3B94A; --gold-strong:#F2CE72; --gold-soft:#3A2E14;
-    --danger:#E88A78; --danger-soft:#3A241E;
-    --warn:#E8AC55; --warn-soft:#392B14;
-    --success:#8DCB94; --success-soft:#20321F;
+    --bg:#0D0D0D; --surface:#1A1A1A; --surface-2:#212121;
+    --border:#2C2C2C; --border-strong:#3E3E3E;
+    --text:#F2F2F2; --text-muted:#AFAFAF; --text-faint:#787878;
+    --accent:#F2F2F2; --accent-strong:#FFFFFF; --accent-soft:#242424; --accent-contrast:#0D0D0D;
+    --gold:#9C9C9C; --gold-strong:#D0D0D0; --gold-soft:#242424;
+    --danger:#FF6259; --danger-soft:#3A1815;
+    --warn:#FF8A70; --warn-soft:#3A2016;
+    --success:#D8D8D8; --success-soft:#242424;
     --shadow-s:0 1px 2px rgba(0,0,0,.4);
     --shadow-m:0 10px 30px -14px rgba(0,0,0,.7);
   }
@@ -71,14 +71,15 @@
   #app{ max-width:900px; margin:0 auto; padding:20px 18px 80px; }
 
   /* ---------- auth gate ---------- */
-  #authGate{
+  #authGate, #pendingGate{
     position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center;
     flex-direction:column; gap:16px; padding:24px; text-align:center; z-index:50;
   }
-  #authGate[hidden]{ display:none; }
-  #authGate .mark{ font-size:38px; }
-  #authGate h1{ font-family:"Archivo",sans-serif; font-size:24px; font-weight:800; margin:0; }
-  #authGate p{ color:var(--text-muted); font-size:14px; max-width:340px; margin:0; }
+  #authGate[hidden], #pendingGate[hidden]{ display:none; }
+  #authGate .mark, #pendingGate .mark{ font-size:38px; }
+  #authGate h1, #pendingGate h1{ font-family:"Archivo",sans-serif; font-size:24px; font-weight:800; margin:0; }
+  #authGate p, #pendingGate p{ color:var(--text-muted); font-size:14px; max-width:360px; margin:0; }
+  #pendingWho{ font-weight:700; color:var(--text) !important; }
   .google-btn{
     display:inline-flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--border-strong);
     border-radius:var(--radius-m); padding:11px 20px; font-size:14.5px; font-weight:700; color:var(--text);
@@ -112,6 +113,20 @@
   .user-chip{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-muted); }
   .user-chip img{ width:22px; height:22px; border-radius:50%; }
   .user-chip button{ border:none; background:none; color:var(--accent); font-size:12.5px; font-weight:600; padding:0; }
+  .top-btn-row{ display:flex; gap:8px; }
+
+  .user-row{
+    display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border);
+    flex-wrap:wrap;
+  }
+  .user-row:last-child{ border-bottom:none; }
+  .user-row-info{ display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
+  .user-row-info img{ width:32px; height:32px; border-radius:50%; flex-shrink:0; background:var(--surface-2); }
+  .user-row-name{ font-weight:700; font-size:13.5px; }
+  .user-row-email{ font-size:12px; color:var(--text-faint); }
+  .user-row-meta{ font-size:11px; color:var(--text-faint); white-space:nowrap; }
+  .user-row-actions{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .user-row-actions .btn[disabled]{ opacity:.4; cursor:not-allowed; }
 
   .add-btn{
     display:inline-flex; align-items:center; gap:7px; background:var(--accent); color:var(--accent-contrast);
@@ -174,7 +189,7 @@
     padding:3px 8px; border-radius:999px; line-height:1.4; white-space:nowrap;
   }
   .chip.type-general{ background:var(--accent-soft); color:var(--accent-strong); }
-  .chip.type-procurement{ background:var(--gold-soft); color:var(--gold-strong); }
+  .chip.type-procurement{ background:transparent; color:var(--text); border:1px solid var(--border-strong); }
   .chip.due-overdue{ background:var(--danger-soft); color:var(--danger); }
   .chip.due-soon{ background:var(--warn-soft); color:var(--warn); }
   .chip.due-normal{ background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border); }
@@ -289,6 +304,14 @@
   <p id="authGateError"></p>
 </div>
 
+<div id="pendingGate" hidden>
+  <div class="mark">⏳</div>
+  <h1>等待核准</h1>
+  <p id="pendingWho"></p>
+  <p>你的帳號還沒被管理者核准使用這個清單。請聯絡管理者幫你開通，開通後這個畫面會自動更新，不用重新整理。</p>
+  <button class="btn" id="pendingSignOutBtn">登出，換個帳號</button>
+</div>
+
 <div id="app" hidden>
   <header class="top">
     <div>
@@ -299,10 +322,13 @@
     </div>
     <div class="top-right">
       <div class="user-chip" id="userChip"></div>
-      <button id="addBtn" class="add-btn" hidden>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
-        新增待辦
-      </button>
+      <div class="top-btn-row">
+        <button id="usersBtn" class="btn" hidden>👤 帳號管理</button>
+        <button id="addBtn" class="add-btn" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+          新增待辦
+        </button>
+      </div>
     </div>
   </header>
 
@@ -407,6 +433,18 @@
   </div>
 </dialog>
 
+<!-- Users management dialog -->
+<dialog id="usersDialog">
+  <div class="dlg-head">
+    <h2>帳號管理</h2>
+    <button class="dlg-close" id="usersDialogClose" aria-label="關閉">✕</button>
+  </div>
+  <div class="dlg-body">
+    <p class="hint" style="margin-bottom:12px;">核准後，該帳號登入就能檢視清單、勾選完成。管理者帳號不受這裡影響，不會顯示在下面。</p>
+    <div id="usersList"></div>
+  </div>
+</dialog>
+
 <!-- Lightbox -->
 <dialog id="lightbox">
   <img id="lightboxImg" src="" alt="照片放大" />
@@ -432,8 +470,9 @@
     messagingSenderId: "252600943368",
     appId: "1:252600943368:web:8addfb1e447366021b62bd"
   };
-  // 只有這個 Google 帳號的登入者，才有「新增／編輯／刪除」待辦的權限。
-  var ADMIN_EMAIL = "coin880709@gmail.com";
+  // 只有這份清單裡的 Google 帳號登入者，才有「新增／編輯／刪除」待辦的權限。
+  // 之後要加管理者，把 email 加進這個陣列（記得也要同步更新 Firestore 安全規則，見 SETUP 說明）。
+  var ADMIN_EMAILS = ["coin880709@gmail.com"];
   // =====================================================================
 
   firebase.initializeApp(firebaseConfig);
@@ -477,14 +516,17 @@
 
   // ---------- state ----------
   var isAdmin = false;
+  var isApproved = false;
+  var isEditor = false; // isAdmin, or an approved account granted "新增/編輯" by an admin
   var currentUser = null;
-  var tasksById = {}, completionsById = {};
+  var tasksById = {}, completionsById = {}, usersById = {};
   var filters = { status:'pending', type:'all', q:'' };
   var currentEditId = null;
   var currentPhotos = [];
   var currentType = 'general';
   var pendingCompleteTaskId = null;
-  var unsubTasks = null, unsubCompletions = null;
+  var unsubTasks = null, unsubCompletions = null, unsubUsers = null, unsubOwnUser = null;
+  var dataSubscribed = false, usersSubscribed = false;
 
   var MAX_PHOTOS = 5;
   var MAX_PHOTO_CHARS = 750000; // headroom under Firestore's ~1MiB document cap
@@ -496,6 +538,7 @@
   var editDialog = $('editDialog');
   var detailDialog = $('detailDialog');
   var completeDialog = $('completeDialog');
+  var usersDialog = $('usersDialog');
   var lightbox = $('lightbox');
 
   function showBanner(msg, kind){
@@ -504,38 +547,110 @@
   function clearBanner(){ bannerZone.innerHTML=''; }
 
   // ---------- auth ----------
+  // Popup is the primary flow (works reliably across desktop + mobile
+  // Safari/Chrome when triggered directly by a click). If the browser
+  // blocks the popup or doesn't support it (some in-app browsers), we
+  // fall back to a full-page redirect; getRedirectResult() below picks
+  // that flow back up after the page reloads.
+  var SILENT_AUTH_ERR = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
+  var FALLBACK_AUTH_ERR = ['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'];
   $('googleSignInBtn').addEventListener('click', function(){
     $('authGateError').textContent = '';
     $('googleSignInBtn').disabled = true;
     var provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithRedirect(provider).catch(function(e){
-      $('authGateError').textContent = '登入失敗：'+e.message;
+    auth.signInWithPopup(provider).catch(function(e){
+      if(FALLBACK_AUTH_ERR.indexOf(e.code) !== -1){
+        auth.signInWithRedirect(provider).catch(function(e2){
+          $('authGateError').textContent = '登入失敗：'+e2.message;
+          $('googleSignInBtn').disabled = false;
+        });
+        return;
+      }
       $('googleSignInBtn').disabled = false;
+      if(SILENT_AUTH_ERR.indexOf(e.code) === -1){
+        $('authGateError').textContent = '登入失敗：'+e.message;
+      }
     });
   });
   auth.getRedirectResult().catch(function(e){
     $('authGateError').textContent = '登入失敗：'+e.message;
     $('googleSignInBtn').disabled = false;
   });
+  $('pendingSignOutBtn').addEventListener('click', function(){ auth.signOut(); });
 
   auth.onAuthStateChanged(function(user){
     if(!user){
-      currentUser = null;
-      $('authGate').hidden = false;
-      $('app').hidden = true;
+      currentUser = null; isAdmin = false; isApproved = false; isEditor = false;
+      dataSubscribed = false; usersSubscribed = false;
       if(unsubTasks){ unsubTasks(); unsubTasks=null; }
       if(unsubCompletions){ unsubCompletions(); unsubCompletions=null; }
+      if(unsubUsers){ unsubUsers(); unsubUsers=null; }
+      if(unsubOwnUser){ unsubOwnUser(); unsubOwnUser=null; }
+      $('authGate').hidden = false;
+      $('pendingGate').hidden = true;
+      $('app').hidden = true;
       return;
     }
     currentUser = user;
-    isAdmin = (user.email === ADMIN_EMAIL);
+    isAdmin = ADMIN_EMAILS.indexOf(user.email) !== -1;
     $('authGate').hidden = true;
-    $('app').hidden = false;
-    renderUserChip();
-    renderAdminUI();
-    subscribe();
-    bindEventsOnce();
+    ensureUserDocAndWatch();
   });
+
+  // Every signed-in visitor gets a doc in `users/{uid}`. New docs start
+  // `allowed:false` (enforced by Firestore rules); an admin approves them
+  // later from the "帳號管理" panel. We watch our own doc live so approval
+  // takes effect immediately, without the visitor reloading the page.
+  function ensureUserDocAndWatch(){
+    var uref = firestore.collection('users').doc(currentUser.uid);
+    uref.get().then(function(snap){
+      if(!snap.exists){
+        return uref.set({
+          email: currentUser.email,
+          displayName: currentUser.displayName || '',
+          photoURL: currentUser.photoURL || '',
+          allowed: false,
+          canEdit: false,
+          createdAt: nowIso(),
+          lastSeenAt: nowIso()
+        });
+      }
+      return uref.update({
+        displayName: currentUser.displayName || '',
+        photoURL: currentUser.photoURL || '',
+        lastSeenAt: nowIso()
+      });
+    }).catch(function(){ /* non-fatal: proceed to watch/read regardless */ })
+    .then(function(){
+      if(unsubOwnUser) unsubOwnUser();
+      unsubOwnUser = uref.onSnapshot(function(snap){
+        var d = snap.exists ? snap.data() : {};
+        isApproved = isAdmin || d.allowed === true;
+        isEditor = isAdmin || d.canEdit === true;
+        updateAccessUI();
+      }, function(){
+        isApproved = isAdmin;
+        isEditor = isAdmin;
+        updateAccessUI();
+      });
+    });
+  }
+
+  function updateAccessUI(){
+    if(isAdmin || isApproved){
+      $('pendingGate').hidden = true;
+      $('app').hidden = false;
+      renderUserChip();
+      renderAdminUI();
+      if(!dataSubscribed){ dataSubscribed = true; subscribe(); }
+      if(isAdmin && !usersSubscribed){ usersSubscribed = true; subscribeUsers(); }
+      bindEventsOnce();
+    }else{
+      $('app').hidden = true;
+      $('pendingGate').hidden = false;
+      $('pendingWho').textContent = '目前登入：'+(currentUser.displayName || '')+'（'+currentUser.email+'）';
+    }
+  }
 
   function renderUserChip(){
     var html = '';
@@ -552,12 +667,74 @@
     if(isAdmin){
       badge.className = 'mode-badge admin';
       badge.textContent = '🔧 管理模式';
-      $('addBtn').hidden = false;
+    }else if(isEditor){
+      badge.className = 'mode-badge admin';
+      badge.textContent = '✏️ 編輯模式';
     }else{
       badge.className = 'mode-badge view';
       badge.textContent = '👁 檢視模式';
-      $('addBtn').hidden = true;
     }
+    $('addBtn').hidden = !(isAdmin || isEditor);
+    $('usersBtn').hidden = !isAdmin;
+  }
+
+  // ---------- users (access) management ----------
+  function subscribeUsers(){
+    unsubUsers = firestore.collection('users').onSnapshot(function(snap){
+      usersById = {};
+      snap.forEach(function(d){ usersById[d.id] = Object.assign({id:d.id}, d.data()); });
+      renderUsersPanel();
+    }, function(err){
+      showBanner('帳號清單載入失敗：'+err.message);
+    });
+  }
+
+  function renderUsersPanel(){
+    var list = $('usersList');
+    if(!list) return;
+    var rows = Object.keys(usersById).map(function(id){ return usersById[id]; })
+      .filter(function(u){ return ADMIN_EMAILS.indexOf(u.email) === -1; })
+      .sort(function(a,b){ return (b.lastSeenAt||'').localeCompare(a.lastSeenAt||''); });
+
+    if(rows.length === 0){
+      list.innerHTML = '<div class="empty-state">還沒有其他人登入過</div>';
+      return;
+    }
+
+    list.innerHTML = rows.map(function(u){
+      var allowed = u.allowed === true;
+      var canEditFlag = u.canEdit === true;
+      return '<div class="user-row">'+
+        '<div class="user-row-info">'+
+          '<img src="'+(u.photoURL||'')+'" alt="" onerror="this.style.visibility=\'hidden\'" />'+
+          '<div><div class="user-row-name">'+esc(u.displayName||u.email)+'</div><div class="user-row-email">'+esc(u.email)+'</div></div>'+
+        '</div>'+
+        '<span class="user-row-meta">最後上線 '+fmtDateTime(u.lastSeenAt)+'</span>'+
+        '<span class="chip '+(allowed?'done-chip':'due-normal')+'">'+(allowed?'已核准':'待核准')+'</span>'+
+        (canEditFlag ? '<span class="chip type-procurement">✏️ 可編輯</span>' : '')+
+        '<div class="user-row-actions">'+
+          '<button class="btn btn-sm '+(allowed?'danger':'primary')+'" data-uid="'+u.id+'" data-field="allowed" data-val="'+(allowed?'0':'1')+'">'+(allowed?'撤銷檢視':'核准檢視')+'</button>'+
+          '<button class="btn btn-sm '+(canEditFlag?'danger':'primary')+'" data-uid="'+u.id+'" data-field="canEdit" data-val="'+(canEditFlag?'0':'1')+'" '+(allowed?'':'disabled title="需先核准檢視"')+'>'+(canEditFlag?'撤銷編輯':'開放編輯')+'</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+
+    list.querySelectorAll('button[data-uid]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var uid = btn.dataset.uid;
+        var field = btn.dataset.field;
+        var val = btn.dataset.val === '1';
+        var patch = {};
+        patch[field] = val;
+        // revoking view access also revokes edit access, so no one keeps
+        // write permission after losing read access
+        if(field === 'allowed' && !val) patch.canEdit = false;
+        btn.disabled = true;
+        firestore.collection('users').doc(uid).update(patch).catch(function(e){
+          alert('操作失敗：'+e.message);
+        }).finally(function(){ btn.disabled = false; });
+      });
+    });
   }
 
   // ---------- data subscribe ----------
@@ -599,7 +776,7 @@
 
     if(filtered.length === 0){
       listZone.innerHTML = '<div class="empty-state">'+
-        (all.length===0 ? '目前還沒有待辦事項' + (isAdmin ? '，點右上角「新增待辦」開始建立。' : '。') : '沒有符合條件的項目') +
+        (all.length===0 ? '目前還沒有待辦事項' + ((isAdmin || isEditor) ? '，點右上角「新增待辦」開始建立。' : '。') : '沒有符合條件的項目') +
         '</div>';
       return;
     }
@@ -747,8 +924,10 @@
     }else if(isAdmin){
       footHtml += '<button class="btn" id="detailUnmarkBtn">取消完成</button>';
     }
-    if(isAdmin){
+    if(isAdmin || isEditor){
       footHtml += '<button class="btn" id="detailEditBtn">編輯</button>';
+    }
+    if(isAdmin){
       footHtml += '<button class="btn danger" id="detailDeleteBtn">刪除</button>';
     }
     $('detailFoot').innerHTML = footHtml;
@@ -958,6 +1137,8 @@
     $('completeDialogClose').addEventListener('click', function(){ completeDialog.close(); });
     $('completeCancelBtn').addEventListener('click', function(){ completeDialog.close(); });
     $('completeConfirmBtn').addEventListener('click', confirmComplete);
+    $('usersBtn').addEventListener('click', function(){ renderUsersPanel(); usersDialog.showModal(); });
+    $('usersDialogClose').addEventListener('click', function(){ usersDialog.close(); });
 
     document.querySelectorAll('.type-toggle button').forEach(function(b){
       b.addEventListener('click', function(){ setTypeToggle(b.dataset.type); });
@@ -977,7 +1158,7 @@
     $('typeFilter').addEventListener('change', function(){ filters.type = this.value; render(); });
     $('searchInput').addEventListener('input', function(){ filters.q = this.value; render(); });
 
-    [editDialog, detailDialog, completeDialog, lightbox].forEach(function(dlg){
+    [editDialog, detailDialog, completeDialog, usersDialog, lightbox].forEach(function(dlg){
       dlg.addEventListener('click', function(e){
         // Only treat this as a backdrop click when the click landed directly
         // on the <dialog> element itself (real backdrop clicks target the
