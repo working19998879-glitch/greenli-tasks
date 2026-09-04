@@ -251,8 +251,13 @@
   dialog{
     border:none; border-radius:var(--radius-l); padding:0; background:var(--surface); color:var(--text);
     box-shadow:var(--shadow-m); width:min(560px, 92vw); max-height:88vh; overflow:hidden;
-    display:flex; flex-direction:column;
   }
+  /* Scoped to [open] on purpose: an unconditional "dialog{display:flex}"
+     overrides the browser's own "dialog:not([open]){display:none}" rule,
+     which permanently shows every <dialog> on the page stacked on top of
+     each other regardless of open state — exactly the #authGate/[hidden]
+     bug from before, just on a different element. */
+  dialog[open]{ display:flex; flex-direction:column; }
   dialog::backdrop{ background:rgba(20,17,12,.5); backdrop-filter:blur(1px); }
   .dlg-head{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
