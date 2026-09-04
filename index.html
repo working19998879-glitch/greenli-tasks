@@ -251,17 +251,21 @@
   dialog{
     border:none; border-radius:var(--radius-l); padding:0; background:var(--surface); color:var(--text);
     box-shadow:var(--shadow-m); width:min(560px, 92vw); max-height:88vh; overflow:hidden;
+    display:flex; flex-direction:column;
   }
   dialog::backdrop{ background:rgba(20,17,12,.5); backdrop-filter:blur(1px); }
   .dlg-head{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
-    padding:16px 18px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--surface); z-index:1;
+    padding:16px 18px; border-bottom:1px solid var(--border); background:var(--surface); z-index:1; flex-shrink:0;
   }
   .dlg-head h2{ font-family:"Archivo",sans-serif; font-size:18px; font-weight:800; margin:0; text-wrap:balance; }
   .dlg-close{ border:none; background:var(--surface-2); width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); flex-shrink:0; }
   .dlg-close:hover{ background:var(--border); }
-  .dlg-body{ padding:18px; overflow-y:auto; max-height:calc(88vh - 60px); }
-  .dlg-foot{ display:flex; justify-content:flex-end; gap:8px; padding:14px 18px; border-top:1px solid var(--border); }
+  /* dlg-body is the ONLY part that scrolls; flex:1 + min-height:0 is what
+     lets it shrink to make room so dlg-head/dlg-foot always stay visible,
+     no matter how tall the form content gets (photos, checklist items…). */
+  .dlg-body{ padding:18px; overflow-y:auto; flex:1 1 auto; min-height:0; }
+  .dlg-foot{ display:flex; justify-content:flex-end; gap:8px; padding:14px 18px; border-top:1px solid var(--border); flex-shrink:0; }
 
   .field{ margin-bottom:14px; }
   .field label{ display:block; font-size:12.5px; font-weight:700; color:var(--text-muted); margin-bottom:5px; }
@@ -517,6 +521,25 @@
   </div>
 </dialog>
 
+<!-- Move-to-project dialog -->
+<dialog id="moveDialog">
+  <div class="dlg-head">
+    <h2>搬移案件</h2>
+    <button class="dlg-close" id="moveDialogClose" aria-label="關閉">✕</button>
+  </div>
+  <div class="dlg-body">
+    <p style="font-size:14px;color:var(--text-muted);margin:0 0 12px;" id="moveTaskLabel"></p>
+    <div class="field">
+      <label for="moveProjectSelect">搬移到</label>
+      <select id="moveProjectSelect"><option value="">未分類</option></select>
+    </div>
+  </div>
+  <div class="dlg-foot">
+    <button class="btn" id="moveCancelBtn">取消</button>
+    <button class="btn primary" id="moveConfirmBtn">確認搬移</button>
+  </div>
+</dialog>
+
 <!-- Users management dialog -->
 <dialog id="usersDialog">
   <div class="dlg-head">
@@ -615,6 +638,7 @@
   var currentChecklist = [];
   var currentType = 'general';
   var pendingCompleteTaskId = null;
+  var pendingMoveTaskId = null;
   var unsubTasks = null, unsubCompletions = null, unsubUsers = null, unsubOwnUser = null, unsubProjects = null;
   var dataSubscribed = false, usersSubscribed = false, projectsSubscribed = false;
 
@@ -628,6 +652,7 @@
   var editDialog = $('editDialog');
   var detailDialog = $('detailDialog');
   var completeDialog = $('completeDialog');
+  var moveDialog = $('moveDialog');
   var usersDialog = $('usersDialog');
   var projectsDialog = $('projectsDialog');
   var lightbox = $('lightbox');
@@ -907,7 +932,7 @@
       .sort(function(a,b){ return (a.name||'').localeCompare(b.name||'', 'zh-Hant'); });
   }
   function projectTitleFor(pid){
-    if(!pid || pid === 'all') return '全部案件';
+    if(!pid || pid === 'all') return '全部待處理項目';
     if(pid === UNASSIGNED_PROJECT_ID) return '未分類';
     return (projectsById[pid] && projectsById[pid].name) || '未分類';
   }
@@ -971,7 +996,7 @@
     var list = sortedProjects();
     var hasUnassigned = Object.keys(tasksById).some(function(id){ return !tasksById[id].projectId; });
 
-    var html = cardHtml('all', '全部案件', '📋', projectTaskCounts('all'));
+    var html = cardHtml('all', '全部待處理項目', '📋', projectTaskCounts('all'));
     list.forEach(function(p){ html += cardHtml(p.id, p.name, '📁', projectTaskCounts(p.id)); });
     if(hasUnassigned) html += cardHtml(UNASSIGNED_PROJECT_ID, '未分類', '📂', projectTaskCounts(UNASSIGNED_PROJECT_ID));
 
@@ -1213,6 +1238,7 @@
     }
     if(isAdmin || isEditor){
       footHtml += '<button class="btn" id="detailEditBtn">編輯</button>';
+      footHtml += '<button class="btn" id="detailMoveBtn">搬移案件</button>';
     }
     if(isAdmin){
       footHtml += '<button class="btn danger" id="detailDeleteBtn">刪除</button>';
@@ -1225,6 +1251,8 @@
     if(unmarkBtn) unmarkBtn.addEventListener('click', function(){ unmarkComplete(id); detailDialog.close(); });
     var editBtn = $('detailEditBtn');
     if(editBtn) editBtn.addEventListener('click', function(){ detailDialog.close(); openEditDialog(id); });
+    var moveBtn = $('detailMoveBtn');
+    if(moveBtn) moveBtn.addEventListener('click', function(){ detailDialog.close(); openMoveDialog(id); });
     var delBtn = $('detailDeleteBtn');
     if(delBtn) delBtn.addEventListener('click', function(){ deleteTask(id); detailDialog.close(); });
 
@@ -1292,6 +1320,34 @@
       patch.completedAt = null;
     }
     return firestore.collection('completions').doc(taskId).set(patch, { merge: true });
+  }
+
+  // ---------- move to another project ----------
+  function openMoveDialog(id){
+    var t = tasksById[id];
+    if(!t) return;
+    pendingMoveTaskId = id;
+    $('moveTaskLabel').textContent = t.title;
+    var sel = $('moveProjectSelect');
+    var html = '<option value="">未分類</option>';
+    sortedProjects().forEach(function(p){ html += '<option value="'+p.id+'">'+esc(p.name)+'</option>'; });
+    sel.innerHTML = html;
+    sel.value = t.projectId || '';
+    moveDialog.showModal();
+  }
+  async function confirmMove(){
+    var id = pendingMoveTaskId;
+    var pid = $('moveProjectSelect').value || null;
+    var btn = $('moveConfirmBtn');
+    btn.disabled = true;
+    try{
+      await firestore.collection('tasks').doc(id).update({ projectId: pid, updatedAt: nowIso() });
+      moveDialog.close();
+    }catch(e){
+      alert('搬移失敗：'+e.message);
+    }finally{
+      btn.disabled = false;
+    }
   }
 
   // ---------- add / edit ----------
@@ -1502,6 +1558,9 @@
     $('completeDialogClose').addEventListener('click', function(){ completeDialog.close(); });
     $('completeCancelBtn').addEventListener('click', function(){ completeDialog.close(); });
     $('completeConfirmBtn').addEventListener('click', confirmComplete);
+    $('moveDialogClose').addEventListener('click', function(){ moveDialog.close(); });
+    $('moveCancelBtn').addEventListener('click', function(){ moveDialog.close(); });
+    $('moveConfirmBtn').addEventListener('click', confirmMove);
     $('usersBtn').addEventListener('click', function(){ renderUsersPanel(); usersDialog.showModal(); });
     $('usersDialogClose').addEventListener('click', function(){ usersDialog.close(); });
     $('projectsBtn').addEventListener('click', function(){ renderProjectsMgmt(); projectsDialog.showModal(); });
@@ -1546,7 +1605,7 @@
     $('typeFilter').addEventListener('change', function(){ filters.type = this.value; render(); });
     $('searchInput').addEventListener('input', function(){ filters.q = this.value; render(); });
 
-    [editDialog, detailDialog, completeDialog, usersDialog, projectsDialog, lightbox].forEach(function(dlg){
+    [editDialog, detailDialog, completeDialog, moveDialog, usersDialog, projectsDialog, lightbox].forEach(function(dlg){
       dlg.addEventListener('click', function(e){
         // Only treat this as a backdrop click when the click landed directly
         // on the <dialog> element itself (real backdrop clicks target the
