@@ -127,6 +127,46 @@
   .user-row-meta{ font-size:11px; color:var(--text-faint); white-space:nowrap; }
   .user-row-actions{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .user-row-actions .btn[disabled]{ opacity:.4; cursor:not-allowed; }
+  .btn-sm{ padding:6px 11px; font-size:12.5px; }
+
+  /* ---------- projects (case) picker ---------- */
+  .section-label{
+    font-family:"Archivo",sans-serif; font-weight:700; font-size:13px; color:var(--text-muted);
+    text-transform:uppercase; letter-spacing:.06em; margin:0 0 12px;
+  }
+  .projects-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); gap:12px;
+  }
+  .project-card{
+    display:flex; flex-direction:column; align-items:flex-start; gap:6px; text-align:left;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-m);
+    padding:16px; cursor:pointer; box-shadow:var(--shadow-s);
+  }
+  .project-card:hover{ border-color:var(--border-strong); }
+  .project-card-icon{ font-size:22px; }
+  .project-card-name{ font-weight:700; font-size:14.5px; color:var(--text); }
+  .project-card-meta{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-muted); }
+
+  .tasks-view-head{ display:flex; align-items:baseline; gap:12px; margin-bottom:16px; }
+  .tasks-view-head h2{ font-family:"Archivo",sans-serif; font-weight:800; font-size:19px; margin:0; color:var(--text); }
+
+  /* ---------- checklist (sub-items) ---------- */
+  .checklist{ display:flex; flex-direction:column; gap:2px; }
+  .checklist-item{
+    display:flex; align-items:center; gap:9px; padding:8px 4px; border-bottom:1px solid var(--border);
+    font-size:13.5px; cursor:pointer;
+  }
+  .checklist-item:last-child{ border-bottom:none; }
+  .checklist-item input[type="checkbox"]{ width:17px; height:17px; flex-shrink:0; accent-color:var(--accent); }
+  .checklist-text{ flex:1; }
+  .checklist-item.done .checklist-text{ color:var(--text-faint); text-decoration:line-through; }
+  .checklist-meta{ font-size:11px; color:var(--text-faint); white-space:nowrap; }
+  .checklist-edit-row{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .checklist-edit-row input{ flex:1; }
+  .checklist-remove-btn{
+    border:none; background:none; color:var(--text-faint); font-size:15px; cursor:pointer; padding:4px 6px; flex-shrink:0;
+  }
+  .checklist-remove-btn:hover{ color:var(--danger); }
 
   .add-btn{
     display:inline-flex; align-items:center; gap:7px; background:var(--accent); color:var(--accent-contrast);
@@ -324,6 +364,7 @@
       <div class="user-chip" id="userChip"></div>
       <div class="top-btn-row">
         <button id="usersBtn" class="btn" hidden>👤 帳號管理</button>
+        <button id="projectsBtn" class="btn" hidden>📁 案件管理</button>
         <button id="addBtn" class="add-btn" hidden>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
           新增待辦
@@ -334,25 +375,41 @@
 
   <div id="bannerZone"></div>
 
-  <div class="toolbar">
-    <div class="search-wrap">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="searchInput" type="text" placeholder="搜尋標題、品項、廠商…" />
+  <!-- Project picker (home screen) -->
+  <div id="projectsView">
+    <p class="section-label">選擇案件</p>
+    <div id="projectsGrid" class="projects-grid">
+      <div class="loading-state">載入中…</div>
     </div>
-    <div class="seg" id="statusSeg">
-      <button data-val="pending" class="active">待處理</button>
-      <button data-val="done">已完成</button>
-      <button data-val="all">全部</button>
-    </div>
-    <select id="typeFilter" class="type-filter">
-      <option value="all">全部類型</option>
-      <option value="general">一般任務</option>
-      <option value="procurement">物料採購</option>
-    </select>
   </div>
 
-  <div id="listZone">
-    <div class="loading-state">載入中…</div>
+  <!-- Tasks list, scoped to whichever project was picked -->
+  <div id="tasksView" hidden>
+    <div class="tasks-view-head">
+      <button class="btn btn-sm" id="backToProjectsBtn">← 案件列表</button>
+      <h2 id="tasksViewTitle"></h2>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-wrap">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="searchInput" type="text" placeholder="搜尋標題、品項、廠商…" />
+      </div>
+      <div class="seg" id="statusSeg">
+        <button data-val="pending" class="active">待處理</button>
+        <button data-val="done">已完成</button>
+        <button data-val="all">全部</button>
+      </div>
+      <select id="typeFilter" class="type-filter">
+        <option value="all">全部類型</option>
+        <option value="general">一般任務</option>
+        <option value="procurement">物料採購</option>
+      </select>
+    </div>
+
+    <div id="listZone">
+      <div class="loading-state">載入中…</div>
+    </div>
   </div>
 </div>
 
@@ -363,6 +420,10 @@
     <button class="dlg-close" id="editDialogClose" aria-label="關閉">✕</button>
   </div>
   <div class="dlg-body">
+    <div class="field">
+      <label for="f_project">所屬案件</label>
+      <select id="f_project"><option value="">請選擇案件…</option></select>
+    </div>
     <div class="field">
       <label for="f_title">標題 *</label>
       <input id="f_title" type="text" placeholder="例如：屋頂支架螺栓補件 / A棟配線檢查" />
@@ -390,6 +451,12 @@
       <textarea id="f_notes" rows="3" placeholder="補充說明…"></textarea>
     </div>
     <div class="field">
+      <label>小項核對清單（選填）</label>
+      <div id="checklistRows"></div>
+      <button type="button" class="btn btn-sm" id="addChecklistItemBtn">＋ 新增小項</button>
+      <p class="hint">同事登入後可以逐項打勾核對；全部勾完，這筆待辦會自動標記完成。</p>
+    </div>
+    <div class="field">
       <label>照片</label>
       <div class="photo-input-row" id="photoRow">
         <button type="button" class="photo-add-btn" id="photoAddBtn">＋</button>
@@ -401,6 +468,23 @@
   <div class="dlg-foot">
     <button class="btn" id="cancelEditBtn">取消</button>
     <button class="btn primary" id="saveTaskBtn">儲存</button>
+  </div>
+</dialog>
+
+<!-- Projects management dialog (admin only) -->
+<dialog id="projectsDialog">
+  <div class="dlg-head">
+    <h2>案件管理</h2>
+    <button class="dlg-close" id="projectsDialogClose" aria-label="關閉">✕</button>
+  </div>
+  <div class="dlg-body">
+    <div class="field-row" style="margin-bottom:14px;">
+      <div class="field" style="flex:1;">
+        <input id="newProjectNameInput" type="text" placeholder="新案件名稱，例如：文府國中" />
+      </div>
+      <button class="btn primary" id="addProjectBtn">新增</button>
+    </div>
+    <div id="projectsList"></div>
   </div>
 </dialog>
 
@@ -513,20 +597,26 @@
     if(d <= 3) return 'soon';
     return 'upcoming';
   }
+  function newItemId(){ return 'it_' + Math.random().toString(36).slice(2, 9); }
+
+  var UNASSIGNED_PROJECT_ID = '__unassigned__';
 
   // ---------- state ----------
   var isAdmin = false;
   var isApproved = false;
   var isEditor = false; // isAdmin, or an approved account granted "新增/編輯" by an admin
   var currentUser = null;
-  var tasksById = {}, completionsById = {}, usersById = {};
+  var tasksById = {}, completionsById = {}, usersById = {}, projectsById = {};
   var filters = { status:'pending', type:'all', q:'' };
+  var currentView = 'projects'; // 'projects' | 'tasks'
+  var currentProjectId = null; // 'all' | UNASSIGNED_PROJECT_ID | a real projects/{id}
   var currentEditId = null;
   var currentPhotos = [];
+  var currentChecklist = [];
   var currentType = 'general';
   var pendingCompleteTaskId = null;
-  var unsubTasks = null, unsubCompletions = null, unsubUsers = null, unsubOwnUser = null;
-  var dataSubscribed = false, usersSubscribed = false;
+  var unsubTasks = null, unsubCompletions = null, unsubUsers = null, unsubOwnUser = null, unsubProjects = null;
+  var dataSubscribed = false, usersSubscribed = false, projectsSubscribed = false;
 
   var MAX_PHOTOS = 5;
   var MAX_PHOTO_CHARS = 750000; // headroom under Firestore's ~1MiB document cap
@@ -539,6 +629,7 @@
   var detailDialog = $('detailDialog');
   var completeDialog = $('completeDialog');
   var usersDialog = $('usersDialog');
+  var projectsDialog = $('projectsDialog');
   var lightbox = $('lightbox');
 
   function showBanner(msg, kind){
@@ -581,11 +672,13 @@
   auth.onAuthStateChanged(function(user){
     if(!user){
       currentUser = null; isAdmin = false; isApproved = false; isEditor = false;
-      dataSubscribed = false; usersSubscribed = false;
+      dataSubscribed = false; usersSubscribed = false; projectsSubscribed = false;
+      currentView = 'projects'; currentProjectId = null;
       if(unsubTasks){ unsubTasks(); unsubTasks=null; }
       if(unsubCompletions){ unsubCompletions(); unsubCompletions=null; }
       if(unsubUsers){ unsubUsers(); unsubUsers=null; }
       if(unsubOwnUser){ unsubOwnUser(); unsubOwnUser=null; }
+      if(unsubProjects){ unsubProjects(); unsubProjects=null; }
       $('authGate').hidden = false;
       $('pendingGate').hidden = true;
       $('app').hidden = true;
@@ -643,6 +736,7 @@
       renderUserChip();
       renderAdminUI();
       if(!dataSubscribed){ dataSubscribed = true; subscribe(); }
+      if(!projectsSubscribed){ projectsSubscribed = true; subscribeProjects(); showProjectsView(); }
       if(isAdmin && !usersSubscribed){ usersSubscribed = true; subscribeUsers(); }
       bindEventsOnce();
     }else{
@@ -676,6 +770,7 @@
     }
     $('addBtn').hidden = !(isAdmin || isEditor);
     $('usersBtn').hidden = !isAdmin;
+    $('projectsBtn').hidden = !isAdmin;
   }
 
   // ---------- users (access) management ----------
@@ -737,22 +832,156 @@
     });
   }
 
+  // ---------- projects management (admin) ----------
+  function renderProjectsMgmt(){
+    var list = $('projectsList');
+    if(!list) return;
+    var rows = sortedProjects();
+    if(rows.length === 0){
+      list.innerHTML = '<div class="empty-state">還沒有任何案件，先在上面新增一個</div>';
+      return;
+    }
+    list.innerHTML = rows.map(function(p){
+      var count = Object.keys(tasksById).filter(function(id){ return tasksById[id].projectId === p.id; }).length;
+      return '<div class="user-row">'+
+        '<div class="user-row-info"><div><div class="user-row-name">'+esc(p.name)+'</div><div class="user-row-email">'+count+' 筆待辦事項</div></div></div>'+
+        '<div class="user-row-actions">'+
+          '<button class="btn btn-sm" data-pid="'+p.id+'" data-act="rename">重新命名</button>'+
+          '<button class="btn btn-sm danger" data-pid="'+p.id+'" data-act="delete">刪除</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+    list.querySelectorAll('button[data-pid]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var pid = btn.dataset.pid;
+        var act = btn.dataset.act;
+        var p = projectsById[pid];
+        if(act === 'rename'){
+          var name = window.prompt('案件名稱：', p ? p.name : '');
+          if(!name || !name.trim()) return;
+          firestore.collection('projects').doc(pid).update({ name: name.trim() }).catch(function(e){
+            alert('更新失敗：'+e.message);
+          });
+        }else if(act === 'delete'){
+          if(!confirm('確定要刪除「'+(p?p.name:'')+'」這個案件嗎？裡面的待辦事項會自動歸到「未分類」，不會被刪除。')) return;
+          firestore.collection('projects').doc(pid).delete().catch(function(e){
+            alert('刪除失敗：'+e.message);
+          });
+        }
+      });
+    });
+  }
+
   // ---------- data subscribe ----------
   function subscribe(){
     unsubTasks = firestore.collection('tasks').limit(500).onSnapshot(function(snap){
       tasksById = {};
       snap.forEach(function(d){ tasksById[d.id] = Object.assign({id:d.id}, d.data()); });
       clearBanner();
-      render();
+      renderCurrentView();
     }, function(err){
       showBanner('待辦事項載入失敗：'+err.message);
     });
     unsubCompletions = firestore.collection('completions').limit(500).onSnapshot(function(snap){
       completionsById = {};
       snap.forEach(function(d){ completionsById[d.id] = d.data(); });
-      render();
+      renderCurrentView();
     }, function(err){
       showBanner('完成狀態載入失敗：'+err.message);
+    });
+  }
+
+  // ---------- projects (cases) ----------
+  function subscribeProjects(){
+    unsubProjects = firestore.collection('projects').onSnapshot(function(snap){
+      projectsById = {};
+      snap.forEach(function(d){ projectsById[d.id] = Object.assign({id:d.id}, d.data()); });
+      renderProjectOptions();
+      renderCurrentView();
+    }, function(err){
+      showBanner('案件清單載入失敗：'+err.message);
+    });
+  }
+  function sortedProjects(){
+    return Object.keys(projectsById).map(function(id){ return projectsById[id]; })
+      .sort(function(a,b){ return (a.name||'').localeCompare(b.name||'', 'zh-Hant'); });
+  }
+  function projectTitleFor(pid){
+    if(!pid || pid === 'all') return '全部案件';
+    if(pid === UNASSIGNED_PROJECT_ID) return '未分類';
+    return (projectsById[pid] && projectsById[pid].name) || '未分類';
+  }
+  // populate both the "新增/編輯待辦" dialog's project select and (if a
+  // projects-management dialog is open) keep it fresh
+  function renderProjectOptions(){
+    var editSel = $('f_project');
+    if(!editSel) return;
+    var cur = editSel.value;
+    var html = '<option value="">請選擇案件…</option>';
+    sortedProjects().forEach(function(p){ html += '<option value="'+p.id+'">'+esc(p.name)+'</option>'; });
+    html += '<option value="__new__">＋ 新增案件…</option>';
+    editSel.innerHTML = html;
+    if([].slice.call(editSel.options).some(function(o){ return o.value === cur; })) editSel.value = cur;
+  }
+  function renderCurrentView(){
+    if(currentView === 'projects') renderProjectsGrid();
+    else render();
+  }
+  function showProjectsView(){
+    currentView = 'projects';
+    currentProjectId = null;
+    $('projectsView').hidden = false;
+    $('tasksView').hidden = true;
+    renderProjectsGrid();
+  }
+  function showTasksView(projectId){
+    currentView = 'tasks';
+    currentProjectId = projectId;
+    $('projectsView').hidden = true;
+    $('tasksView').hidden = false;
+    $('tasksViewTitle').textContent = projectTitleFor(projectId);
+    render();
+  }
+  function projectTaskCounts(pid){
+    var tasks = Object.keys(tasksById).map(function(id){ return tasksById[id]; })
+      .filter(function(t){
+        if(pid === 'all') return true;
+        return (t.projectId || UNASSIGNED_PROJECT_ID) === pid;
+      });
+    var pending = 0, overdue = 0;
+    tasks.forEach(function(t){
+      var st = taskStatus(t, completionsById[t.id]);
+      if(st !== 'done') pending++;
+      if(st === 'overdue') overdue++;
+    });
+    return { total: tasks.length, pending: pending, overdue: overdue };
+  }
+  function renderProjectsGrid(){
+    var grid = $('projectsGrid');
+    if(!grid) return;
+    function cardHtml(id, name, icon, counts){
+      return '<button type="button" class="project-card" data-pid="'+id+'">'+
+        '<div class="project-card-icon">'+icon+'</div>'+
+        '<div class="project-card-name">'+esc(name)+'</div>'+
+        '<div class="project-card-meta"><span class="num">'+counts.pending+'</span> 筆待處理'+
+          (counts.overdue>0 ? '<span class="chip due-overdue">逾期 <span class="num">'+counts.overdue+'</span></span>' : '')+
+        '</div>'+
+      '</button>';
+    }
+    var list = sortedProjects();
+    var hasUnassigned = Object.keys(tasksById).some(function(id){ return !tasksById[id].projectId; });
+
+    var html = cardHtml('all', '全部案件', '📋', projectTaskCounts('all'));
+    list.forEach(function(p){ html += cardHtml(p.id, p.name, '📁', projectTaskCounts(p.id)); });
+    if(hasUnassigned) html += cardHtml(UNASSIGNED_PROJECT_ID, '未分類', '📂', projectTaskCounts(UNASSIGNED_PROJECT_ID));
+
+    if(list.length === 0 && !hasUnassigned){
+      grid.innerHTML = '<div class="empty-state">還沒有任何案件'+(isAdmin ? '，點右上角「案件管理」新增一個。' : '。')+'</div>';
+      return;
+    }
+    grid.innerHTML = html;
+    grid.querySelectorAll('.project-card').forEach(function(btn){
+      btn.addEventListener('click', function(){ showTasksView(btn.dataset.pid); });
     });
   }
 
@@ -760,8 +989,14 @@
   function render(){
     var all = Object.keys(tasksById).map(function(id){ return tasksById[id]; });
     var q = filters.q.trim().toLowerCase();
+    var inScope = all.filter(function(t){
+      if(currentProjectId && currentProjectId !== 'all'){
+        return (t.projectId || UNASSIGNED_PROJECT_ID) === currentProjectId;
+      }
+      return true;
+    });
 
-    var filtered = all.filter(function(t){
+    var filtered = inScope.filter(function(t){
       if(filters.type !== 'all' && t.type !== filters.type) return false;
       var completion = completionsById[t.id];
       var status = taskStatus(t, completion);
@@ -776,7 +1011,9 @@
 
     if(filtered.length === 0){
       listZone.innerHTML = '<div class="empty-state">'+
-        (all.length===0 ? '目前還沒有待辦事項' + ((isAdmin || isEditor) ? '，點右上角「新增待辦」開始建立。' : '。') : '沒有符合條件的項目') +
+        (inScope.length===0
+          ? '「'+esc(projectTitleFor(currentProjectId))+'」目前還沒有待辦事項' + ((isAdmin || isEditor) ? '，點右上角「新增待辦」開始建立。' : '。')
+          : '沒有符合條件的項目') +
         '</div>';
       return;
     }
@@ -840,28 +1077,44 @@
   function renderRow(t, completion){
     var status = taskStatus(t, completion);
     var done = status === 'done';
+    var hasChecklist = t.checklist && t.checklist.length > 0;
     var typeChip = t.type === 'procurement'
       ? '<span class="chip type-procurement">🛒 物料採購</span>'
       : '<span class="chip type-general">📋 一般任務</span>';
+    var projChip = (currentProjectId === 'all')
+      ? '<span class="chip due-normal">📁 '+esc(projectTitleFor(t.projectId || UNASSIGNED_PROJECT_ID))+'</span>' : '';
     var dueChip = '';
     if(t.dueDate){
       var cls = status==='overdue' ? 'due-overdue' : (status==='soon' ? 'due-soon' : 'due-normal');
       dueChip = '<span class="chip '+cls+'">📅 <span class="num">'+fmtDate(t.dueDate)+'</span></span>';
     }
     var doneChip = done ? '<span class="chip done-chip">✓ '+esc(completion.completedBy||'')+'</span>' : '';
+    var checklistChip = '';
+    if(hasChecklist){
+      var items = (completion && completion.items) || {};
+      var doneCount = t.checklist.filter(function(it){ return items[it.id] && items[it.id].done; }).length;
+      checklistChip = '<span class="chip due-normal">☑ <span class="num">'+doneCount+'/'+t.checklist.length+'</span> 小項</span>';
+    }
     var photoBadge = (t.photos && t.photos.length) ? '<span class="photo-count">🖼 '+t.photos.length+'</span>' : '';
     var subline = t.type === 'procurement' && (t.item || t.vendor)
       ? '<div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">'+esc([t.item, t.vendor].filter(Boolean).join(' · '))+'</div>' : '';
 
-    return '<div class="task-row '+(done?'done ':'')+status+'" data-id="'+t.id+'">'+
-      '<div class="stripe"></div>'+
+    // tasks with a checklist are completed/uncompleted entirely by ticking
+    // their sub-items in the detail view, so the row's own check button
+    // (single-tap complete) doesn't apply — show a static progress badge
+    // instead and let the whole row open the detail dialog.
+    var checkBtn = hasChecklist ? '' :
       '<button class="check-btn '+(done?'done':'')+'" aria-label="'+(done?'取消完成':'標記完成')+'">'+
         (done ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>' : '')+
-      '</button>'+
+      '</button>';
+
+    return '<div class="task-row '+(done?'done ':'')+status+'" data-id="'+t.id+'">'+
+      '<div class="stripe"></div>'+
+      checkBtn+
       '<div class="row-body">'+
         '<div class="row-top"><span class="row-title">'+esc(t.title)+'</span></div>'+
         subline+
-        '<div class="row-meta">'+typeChip+dueChip+doneChip+photoBadge+'</div>'+
+        '<div class="row-meta">'+projChip+typeChip+dueChip+doneChip+checklistChip+photoBadge+'</div>'+
       '</div>'+
     '</div>';
   }
@@ -874,7 +1127,12 @@
     var status = taskStatus(t, c);
     $('detailTitle').textContent = t.title;
 
+    var hasChecklist = t.checklist && t.checklist.length > 0;
+
     var html = '';
+    html += '<div><div class="detail-row-label">案件</div>' +
+      '<span class="chip due-normal">📁 '+esc(projectTitleFor(t.projectId || UNASSIGNED_PROJECT_ID))+'</span>' +
+      '</div>';
     html += '<div><div class="detail-row-label">類型</div>' +
       (t.type==='procurement' ? '<span class="chip type-procurement">🛒 物料採購</span>' : '<span class="chip type-general">📋 一般任務</span>') +
       '</div>';
@@ -902,7 +1160,21 @@
       html += '</div></div>';
     }
 
-    if(c && c.completed){
+    if(hasChecklist){
+      var items = (c && c.items) || {};
+      var doneCount = t.checklist.filter(function(it){ return items[it.id] && items[it.id].done; }).length;
+      html += '<div><div class="detail-row-label">小項核對（'+doneCount+'/'+t.checklist.length+'）</div><div class="checklist">' +
+        t.checklist.map(function(it){
+          var ci = items[it.id] || {};
+          var idone = ci.done === true;
+          return '<label class="checklist-item'+(idone?' done':'')+'">'+
+            '<input type="checkbox" data-item-id="'+it.id+'" '+(idone?'checked':'')+' />'+
+            '<span class="checklist-text">'+esc(it.text)+'</span>'+
+            (idone ? '<span class="checklist-meta">'+esc(ci.doneBy||'')+' · '+fmtDateTime(ci.doneAt)+'</span>' : '')+
+          '</label>';
+        }).join('') +
+      '</div></div>';
+    }else if(c && c.completed){
       html += '<div class="complete-box">✓ 已完成 — '+esc(c.completedBy)+'（'+fmtDateTime(c.completedAt)+'）</div>';
     }else{
       html += '<div class="complete-box pending">⬜ 尚未完成</div>';
@@ -917,12 +1189,27 @@
         lightbox.showModal();
       });
     });
+    $('detailBody').querySelectorAll('.checklist-item input[type="checkbox"]').forEach(function(cb){
+      cb.addEventListener('change', function(){
+        var val = cb.checked;
+        cb.disabled = true;
+        toggleChecklistItem(id, cb.dataset.itemId, val).then(function(){
+          openDetail(id); // re-render with the fresh state (who/when, progress count)
+        }).catch(function(e){
+          alert('操作失敗：'+e.message);
+          cb.disabled = false;
+          cb.checked = !val;
+        });
+      });
+    });
 
     var footHtml = '';
-    if(!(c && c.completed)){
-      footHtml += '<button class="btn primary" id="detailCompleteBtn">標記完成</button>';
-    }else if(isAdmin){
-      footHtml += '<button class="btn" id="detailUnmarkBtn">取消完成</button>';
+    if(!hasChecklist){
+      if(!(c && c.completed)){
+        footHtml += '<button class="btn primary" id="detailCompleteBtn">標記完成</button>';
+      }else if(isAdmin){
+        footHtml += '<button class="btn" id="detailUnmarkBtn">取消完成</button>';
+      }
     }
     if(isAdmin || isEditor){
       footHtml += '<button class="btn" id="detailEditBtn">編輯</button>';
@@ -941,7 +1228,7 @@
     var delBtn = $('detailDeleteBtn');
     if(delBtn) delBtn.addEventListener('click', function(){ deleteTask(id); detailDialog.close(); });
 
-    detailDialog.showModal();
+    if(!detailDialog.open) detailDialog.showModal();
   }
 
   // ---------- complete flow ----------
@@ -974,6 +1261,39 @@
     }
   }
 
+  // Toggles one checklist sub-item and derives the task's overall completed
+  // state from whether every sub-item is now done — this is what drives
+  // taskStatus()/the "已完成" bucket for checklist tasks, no separate
+  // "標記完成" button needed.
+  function toggleChecklistItem(taskId, itemId, done){
+    var task = tasksById[taskId];
+    if(!task || !task.checklist) return Promise.resolve();
+    var existing = (completionsById[taskId] && completionsById[taskId].items) || {};
+    var newItems = Object.assign({}, existing);
+    newItems[itemId] = {
+      done: done,
+      doneBy: done ? (currentUser.displayName || currentUser.email) : null,
+      doneByEmail: done ? currentUser.email : null,
+      doneAt: done ? nowIso() : null
+    };
+    var allDone = task.checklist.length > 0 && task.checklist.every(function(it){
+      return newItems[it.id] && newItems[it.id].done;
+    });
+    var patch = { items: newItems };
+    if(allDone){
+      patch.completed = true;
+      patch.completedBy = currentUser.displayName || currentUser.email;
+      patch.completedByEmail = currentUser.email;
+      patch.completedAt = nowIso();
+    }else{
+      patch.completed = false;
+      patch.completedBy = null;
+      patch.completedByEmail = null;
+      patch.completedAt = null;
+    }
+    return firestore.collection('completions').doc(taskId).set(patch, { merge: true });
+  }
+
   // ---------- add / edit ----------
   function resetForm(){
     $('f_title').value = '';
@@ -982,10 +1302,48 @@
     $('f_vendor').value = '';
     $('f_due').value = '';
     $('f_notes').value = '';
+    // pre-select the project we're currently browsing, if any real project
+    // is in view; leave blank (未分類) otherwise
+    $('f_project').value = (currentProjectId && currentProjectId !== 'all' && currentProjectId !== UNASSIGNED_PROJECT_ID)
+      ? currentProjectId : '';
     currentPhotos = [];
+    currentChecklist = [];
     currentType = 'general';
     renderPhotoRow();
+    renderChecklistRow();
     setTypeToggle('general');
+  }
+  function renderChecklistRow(){
+    var wrap = $('checklistRows');
+    if(!wrap) return;
+    wrap.innerHTML = currentChecklist.map(function(it, idx){
+      return '<div class="checklist-edit-row">'+
+        '<input type="text" class="checklist-edit-input" data-idx="'+idx+'" value="'+esc(it.text)+'" placeholder="第 '+(idx+1)+' 項…" />'+
+        '<button type="button" class="checklist-remove-btn" data-idx="'+idx+'" aria-label="刪除">✕</button>'+
+      '</div>';
+    }).join('');
+    wrap.querySelectorAll('.checklist-edit-input').forEach(function(inp){
+      inp.addEventListener('input', function(){ currentChecklist[parseInt(inp.dataset.idx,10)].text = inp.value; });
+    });
+    wrap.querySelectorAll('.checklist-remove-btn').forEach(function(b){
+      b.addEventListener('click', function(){
+        currentChecklist.splice(parseInt(b.dataset.idx,10), 1);
+        renderChecklistRow();
+      });
+    });
+  }
+  function promptNewProject(){
+    var name = window.prompt('新案件名稱：');
+    if(!name || !name.trim()){ $('f_project').value = ''; return; }
+    name = name.trim();
+    firestore.collection('projects').add({ name: name, createdAt: nowIso() }).then(function(ref){
+      projectsById[ref.id] = { id: ref.id, name: name, createdAt: nowIso() };
+      renderProjectOptions();
+      $('f_project').value = ref.id;
+    }).catch(function(e){
+      alert('新增案件失敗：'+e.message);
+      $('f_project').value = '';
+    });
   }
   function setTypeToggle(type){
     currentType = type;
@@ -1073,8 +1431,11 @@
       $('f_vendor').value = t.vendor || '';
       $('f_due').value = t.dueDate || '';
       $('f_notes').value = t.notes || '';
+      $('f_project').value = t.projectId || '';
       currentPhotos = (t.photos || []).slice();
+      currentChecklist = (t.checklist || []).map(function(it){ return { id: it.id, text: it.text }; });
       renderPhotoRow();
+      renderChecklistRow();
       setTypeToggle(t.type || 'general');
     }else{
       $('editDialogTitle').textContent = '新增待辦';
@@ -1085,15 +1446,19 @@
   async function saveTask(){
     var title = $('f_title').value.trim();
     if(!title){ $('f_title').focus(); return; }
+    var projectVal = $('f_project').value;
     var data = {
       title: title,
       type: currentType,
+      projectId: (projectVal && projectVal !== '__new__') ? projectVal : null,
       dueDate: $('f_due').value || null,
       notes: $('f_notes').value.trim() || null,
       item: currentType === 'procurement' ? ($('f_item').value.trim() || null) : null,
       qty: currentType === 'procurement' ? ($('f_qty').value.trim() || null) : null,
       vendor: currentType === 'procurement' ? ($('f_vendor').value.trim() || null) : null,
       photos: currentPhotos.slice(),
+      checklist: currentChecklist.filter(function(it){ return it.text && it.text.trim(); })
+        .map(function(it){ return { id: it.id, text: it.text.trim() }; }),
       updatedAt: nowIso()
     };
     var saveBtn = $('saveTaskBtn');
@@ -1139,6 +1504,20 @@
     $('completeConfirmBtn').addEventListener('click', confirmComplete);
     $('usersBtn').addEventListener('click', function(){ renderUsersPanel(); usersDialog.showModal(); });
     $('usersDialogClose').addEventListener('click', function(){ usersDialog.close(); });
+    $('projectsBtn').addEventListener('click', function(){ renderProjectsMgmt(); projectsDialog.showModal(); });
+    $('projectsDialogClose').addEventListener('click', function(){ projectsDialog.close(); });
+    $('addProjectBtn').addEventListener('click', function(){
+      var input = $('newProjectNameInput');
+      var name = input.value.trim();
+      if(!name) return;
+      $('addProjectBtn').disabled = true;
+      firestore.collection('projects').add({ name: name, createdAt: nowIso() }).then(function(){
+        input.value = '';
+      }).catch(function(e){
+        alert('新增失敗：'+e.message);
+      }).finally(function(){ $('addProjectBtn').disabled = false; });
+    });
+    $('backToProjectsBtn').addEventListener('click', function(){ showProjectsView(); });
 
     document.querySelectorAll('.type-toggle button').forEach(function(b){
       b.addEventListener('click', function(){ setTypeToggle(b.dataset.type); });
@@ -1146,6 +1525,15 @@
     $('photoInput').addEventListener('change', function(e){
       if(e.target.files.length) handlePhotoFiles(e.target.files);
       e.target.value = '';
+    });
+    $('addChecklistItemBtn').addEventListener('click', function(){
+      currentChecklist.push({ id: newItemId(), text: '' });
+      renderChecklistRow();
+      var inputs = $('checklistRows').querySelectorAll('.checklist-edit-input');
+      if(inputs.length) inputs[inputs.length-1].focus();
+    });
+    $('f_project').addEventListener('change', function(){
+      if(this.value === '__new__') promptNewProject();
     });
 
     $('statusSeg').querySelectorAll('button').forEach(function(b){
@@ -1158,7 +1546,7 @@
     $('typeFilter').addEventListener('change', function(){ filters.type = this.value; render(); });
     $('searchInput').addEventListener('input', function(){ filters.q = this.value; render(); });
 
-    [editDialog, detailDialog, completeDialog, usersDialog, lightbox].forEach(function(dlg){
+    [editDialog, detailDialog, completeDialog, usersDialog, projectsDialog, lightbox].forEach(function(dlg){
       dlg.addEventListener('click', function(e){
         // Only treat this as a backdrop click when the click landed directly
         // on the <dialog> element itself (real backdrop clicks target the
