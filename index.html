@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>綠理代辦板</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root{
+    --bg:#F6F2E9; --surface:#FFFFFF; --surface-2:#FBF7EF;
+    --border:#E3DAC6; --border-strong:#CDBF9E;
+    --text:#2B2620; --text-muted:#6E6554; --text-faint:#9A9081;
+    --accent:#2B6777; --accent-strong:#1E4C58; --accent-soft:#E4EEEF; --accent-contrast:#FFFFFF;
+    --gold:#A9760C; --gold-strong:#7E590A; --gold-soft:#F5E9CC;
+    --danger:#B23A2A; --danger-soft:#F7E1DC;
+    --warn:#C3760A; --warn-soft:#F8E7CC;
+    --success:#3C7A45; --success-soft:#E4F0E4;
+    --shadow-s:0 1px 2px rgba(43,38,32,.07);
+    --shadow-m:0 10px 30px -14px rgba(43,38,32,.35);
+    --radius-s:7px; --radius-m:12px; --radius-l:18px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#1A1712; --surface:#242019; --surface-2:#2B261D;
+      --border:#3B3527; --border-strong:#4E4633;
+      --text:#F1ECDF; --text-muted:#BAB09B; --text-faint:#867C68;
+      --accent:#7FC2CE; --accent-strong:#A6DAE3; --accent-soft:#213A3E; --accent-contrast:#0F2226;
+      --gold:#E3B94A; --gold-strong:#F2CE72; --gold-soft:#3A2E14;
+      --danger:#E88A78; --danger-soft:#3A241E;
+      --warn:#E8AC55; --warn-soft:#392B14;
+      --success:#8DCB94; --success-soft:#20321F;
+      --shadow-s:0 1px 2px rgba(0,0,0,.4);
+      --shadow-m:0 10px 30px -14px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#1A1712; --surface:#242019; --surface-2:#2B261D;
+    --border:#3B3527; --border-strong:#4E4633;
+    --text:#F1ECDF; --text-muted:#BAB09B; --text-faint:#867C68;
+    --accent:#7FC2CE; --accent-strong:#A6DAE3; --accent-soft:#213A3E; --accent-contrast:#0F2226;
+    --gold:#E3B94A; --gold-strong:#F2CE72; --gold-soft:#3A2E14;
+    --danger:#E88A78; --danger-soft:#3A241E;
+    --warn:#E8AC55; --warn-soft:#392B14;
+    --success:#8DCB94; --success-soft:#20321F;
+    --shadow-s:0 1px 2px rgba(0,0,0,.4);
+    --shadow-m:0 10px 30px -14px rgba(0,0,0,.7);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:"Noto Sans TC","Archivo",-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .num{ font-family:"IBM Plex Mono","Noto Sans TC",monospace; font-variant-numeric:tabular-nums; }
+
+  a{color:var(--accent);}
+  button{ font-family:inherit; cursor:pointer; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, [tabindex]:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+  input, textarea, select{
+    font-family:inherit; font-size:14px; color:var(--text); background:var(--surface);
+    border:1px solid var(--border-strong); border-radius:var(--radius-s); padding:9px 11px;
+  }
+  input::placeholder, textarea::placeholder{ color:var(--text-faint); }
+  textarea{ resize:vertical; }
+
+  #app{ max-width:900px; margin:0 auto; padding:20px 18px 80px; }
+
+  /* ---------- auth gate ---------- */
+  #authGate{
+    position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:16px; padding:24px; text-align:center; z-index:50;
+  }
+  #authGate .mark{ font-size:38px; }
+  #authGate h1{ font-family:"Archivo",sans-serif; font-size:24px; font-weight:800; margin:0; }
+  #authGate p{ color:var(--text-muted); font-size:14px; max-width:340px; margin:0; }
+  .google-btn{
+    display:inline-flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--border-strong);
+    border-radius:var(--radius-m); padding:11px 20px; font-size:14.5px; font-weight:700; color:var(--text);
+    box-shadow:var(--shadow-s);
+  }
+  .google-btn:hover{ border-color:var(--accent); }
+  #authGateError{ color:var(--danger); font-size:13px; min-height:16px; }
+
+  /* ---------- header ---------- */
+  header.top{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+    padding-bottom:18px; margin-bottom:18px; border-bottom:1px solid var(--border);
+  }
+  .brand-eyebrow{
+    font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--text-faint); margin:0 0 4px;
+  }
+  h1{
+    font-family:"Archivo",sans-serif; font-weight:800; font-size:26px; letter-spacing:-.01em;
+    margin:0; text-wrap:balance; color:var(--text);
+  }
+  .top-sub{ color:var(--text-muted); font-size:13.5px; margin-top:4px; }
+  .mode-badge{
+    display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600;
+    padding:5px 10px; border-radius:999px; white-space:nowrap; margin-top:2px;
+  }
+  .mode-badge.admin{ background:var(--gold-soft); color:var(--gold-strong); }
+  .mode-badge.view{ background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border); }
+
+  .top-right{ display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+  .user-chip{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-muted); }
+  .user-chip img{ width:22px; height:22px; border-radius:50%; }
+  .user-chip button{ border:none; background:none; color:var(--accent); font-size:12.5px; font-weight:600; padding:0; }
+
+  .add-btn{
+    display:inline-flex; align-items:center; gap:7px; background:var(--accent); color:var(--accent-contrast);
+    border:none; border-radius:var(--radius-m); padding:10px 16px; font-weight:700; font-size:14px;
+    box-shadow:var(--shadow-s); white-space:nowrap;
+  }
+  .add-btn:hover{ background:var(--accent-strong); }
+
+  /* ---------- toolbar ---------- */
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:20px;
+  }
+  .search-wrap{ position:relative; flex:1 1 200px; min-width:160px; }
+  .search-wrap input{ width:100%; padding-left:32px; }
+  .search-wrap svg{ position:absolute; left:9px; top:50%; transform:translateY(-50%); opacity:.5; }
+  .seg{ display:flex; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-m); padding:3px; gap:2px; }
+  .seg button{
+    border:none; background:transparent; padding:7px 12px; border-radius:calc(var(--radius-m) - 3px);
+    font-size:13px; font-weight:600; color:var(--text-muted);
+  }
+  .seg button.active{ background:var(--surface); color:var(--text); box-shadow:var(--shadow-s); }
+  select.type-filter{ font-size:13px; font-weight:600; padding:8px 10px; }
+
+  /* ---------- groups & rows ---------- */
+  .group{ margin-bottom:22px; }
+  .group-title{
+    display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--text-faint); margin:0 0 8px 2px;
+  }
+  .group-title .count{ font-family:"IBM Plex Mono",monospace; }
+  .group-title.overdue{ color:var(--danger); }
+  .group-title.soon{ color:var(--warn); }
+
+  .card-list{ display:flex; flex-direction:column; gap:8px; }
+  .task-row{
+    display:flex; align-items:flex-start; gap:12px; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-m); padding:12px 14px; box-shadow:var(--shadow-s); cursor:pointer;
+  }
+  .task-row:hover{ border-color:var(--border-strong); }
+  .task-row.done{ opacity:.62; }
+  .task-row .stripe{ width:4px; align-self:stretch; border-radius:3px; background:transparent; margin-right:2px; flex-shrink:0; }
+  .task-row.overdue .stripe{ background:var(--danger); }
+  .task-row.soon .stripe{ background:var(--warn); }
+
+  .check-btn{
+    flex-shrink:0; width:24px; height:24px; border-radius:7px; border:2px solid var(--border-strong);
+    background:var(--surface); display:flex; align-items:center; justify-content:center; margin-top:1px;
+  }
+  .check-btn.done{ background:var(--success); border-color:var(--success); color:#fff; }
+  .check-btn svg{ width:15px; height:15px; }
+
+  .row-body{ flex:1; min-width:0; }
+  .row-top{ display:flex; align-items:baseline; flex-wrap:wrap; gap:8px 10px; }
+  .row-title{ font-weight:700; font-size:15px; color:var(--text); }
+  .task-row.done .row-title{ text-decoration:line-through; text-decoration-color:var(--text-faint); }
+  .row-meta{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+
+  .chip{
+    display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700;
+    padding:3px 8px; border-radius:999px; line-height:1.4; white-space:nowrap;
+  }
+  .chip.type-general{ background:var(--accent-soft); color:var(--accent-strong); }
+  .chip.type-procurement{ background:var(--gold-soft); color:var(--gold-strong); }
+  .chip.due-overdue{ background:var(--danger-soft); color:var(--danger); }
+  .chip.due-soon{ background:var(--warn-soft); color:var(--warn); }
+  .chip.due-normal{ background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border); }
+  .chip.done-chip{ background:var(--success-soft); color:var(--success); }
+  .chip .num{ font-weight:700; }
+  .photo-count{ display:inline-flex; align-items:center; gap:3px; font-size:12px; color:var(--text-faint); }
+
+  .empty-state, .loading-state{
+    text-align:center; padding:48px 20px; color:var(--text-muted); font-size:14px;
+    background:var(--surface); border:1px dashed var(--border-strong); border-radius:var(--radius-m);
+  }
+  .banner{
+    background:var(--danger-soft); color:var(--danger); border-radius:var(--radius-m); padding:12px 14px;
+    font-size:13.5px; margin-bottom:16px; border:1px solid var(--danger);
+  }
+  .banner.info{ background:var(--accent-soft); color:var(--accent-strong); border-color:var(--accent); }
+
+  /* ---------- dialogs ---------- */
+  dialog{
+    border:none; border-radius:var(--radius-l); padding:0; background:var(--surface); color:var(--text);
+    box-shadow:var(--shadow-m); width:min(560px, 92vw); max-height:88vh; overflow:hidden;
+  }
+  dialog::backdrop{ background:rgba(20,17,12,.5); backdrop-filter:blur(1px); }
+  .dlg-head{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:16px 18px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--surface); z-index:1;
+  }
+  .dlg-head h2{ font-family:"Archivo",sans-serif; font-size:18px; font-weight:800; margin:0; text-wrap:balance; }
+  .dlg-close{ border:none; background:var(--surface-2); width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); flex-shrink:0; }
+  .dlg-close:hover{ background:var(--border); }
+  .dlg-body{ padding:18px; overflow-y:auto; max-height:calc(88vh - 60px); }
+  .dlg-foot{ display:flex; justify-content:flex-end; gap:8px; padding:14px 18px; border-top:1px solid var(--border); }
+
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12.5px; font-weight:700; color:var(--text-muted); margin-bottom:5px; }
+  .field input, .field textarea, .field select{ width:100%; }
+  .field-row{ display:flex; gap:10px; }
+  .field-row .field{ flex:1; }
+
+  .type-toggle{ display:flex; gap:8px; }
+  .type-toggle button{
+    flex:1; border:1px solid var(--border-strong); background:var(--surface-2); border-radius:var(--radius-s);
+    padding:9px; font-size:13.5px; font-weight:700; color:var(--text-muted);
+  }
+  .type-toggle button.active.general{ background:var(--accent); border-color:var(--accent); color:var(--accent-contrast); }
+  .type-toggle button.active.procurement{ background:var(--gold); border-color:var(--gold); color:#fff; }
+
+  .btn{
+    border:1px solid var(--border-strong); background:var(--surface-2); color:var(--text);
+    border-radius:var(--radius-s); padding:9px 15px; font-size:13.5px; font-weight:700;
+  }
+  .btn:hover{ background:var(--border); }
+  .btn.primary{ background:var(--accent); border-color:var(--accent); color:var(--accent-contrast); }
+  .btn.primary:hover{ background:var(--accent-strong); }
+  .btn.danger{ background:var(--surface); border-color:var(--danger); color:var(--danger); }
+  .btn.danger:hover{ background:var(--danger-soft); }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+  .photo-input-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .photo-thumb{ position:relative; width:66px; height:66px; border-radius:8px; overflow:hidden; border:1px solid var(--border); }
+  .photo-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .photo-thumb button{
+    position:absolute; top:2px; right:2px; width:18px; height:18px; border-radius:50%; border:none;
+    background:rgba(0,0,0,.6); color:#fff; font-size:11px; line-height:1; display:flex; align-items:center; justify-content:center;
+  }
+  .photo-add-btn{
+    width:66px; height:66px; border-radius:8px; border:1.5px dashed var(--border-strong); background:var(--surface-2);
+    color:var(--text-faint); font-size:20px; display:flex; align-items:center; justify-content:center;
+  }
+  .hint{ font-size:11.5px; color:var(--text-faint); margin-top:6px; }
+  .hint.warn{ color:var(--warn); }
+
+  .detail-grid{ display:flex; flex-direction:column; gap:14px; }
+  .detail-row-label{ font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint); margin-bottom:4px; }
+  .detail-notes{ white-space:pre-wrap; font-size:14px; line-height:1.65; color:var(--text); }
+  .procure-table{ display:grid; grid-template-columns:auto 1fr; gap:6px 14px; font-size:14px; margin:0; }
+  .procure-table dt{ color:var(--text-faint); font-weight:600; }
+  .procure-table dd{ margin:0; font-weight:600; }
+  .gallery{ display:grid; grid-template-columns:repeat(auto-fill, minmax(84px,1fr)); gap:8px; }
+  .gallery img{ width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px; border:1px solid var(--border); cursor:zoom-in; }
+  .complete-box{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 13px;
+    border-radius:var(--radius-m); background:var(--success-soft); color:var(--success); font-size:13.5px; font-weight:600;
+  }
+  .complete-box.pending{ background:var(--surface-2); color:var(--text-muted); }
+  .detail-foot-meta{ font-size:11.5px; color:var(--text-faint); margin-top:2px; }
+  .confirm-who{ background:var(--accent-soft); color:var(--accent-strong); border-radius:var(--radius-m); padding:11px 13px; font-size:13.5px; font-weight:600; margin-bottom:6px; }
+
+  #lightbox{ width:min(90vw,720px); background:transparent; box-shadow:none; }
+  #lightbox img{ width:100%; border-radius:10px; display:block; }
+  #lightbox::backdrop{ background:rgba(10,8,5,.82); }
+
+  @media (max-width:560px){
+    #app{ padding:14px 12px 70px; }
+    h1{ font-size:22px; }
+    header.top{ flex-direction:column; }
+    .top-right{ align-items:flex-start; }
+    .add-btn{ align-self:flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div id="authGate">
+  <div class="mark">☀️</div>
+  <h1>綠理代辦板</h1>
+  <p>公司內部工作與物料採購待辦清單。請使用 Google 帳號登入以檢視內容。</p>
+  <button class="google-btn" id="googleSignInBtn">
+    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.7 29.4 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.3 0 10.2-2 13.9-5.4l-6.4-5.4C29.4 34.9 26.8 36 24 36c-5.4 0-9.9-3.3-11.4-7.9l-6.5 5C9.6 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.9 2.5-2.5 4.6-4.7 6.1l6.4 5.4C40.5 36.8 44 31.1 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
+    使用 Google 帳號登入
+  </button>
+  <p id="authGateError"></p>
+</div>
+
+<div id="app" hidden>
+  <header class="top">
+    <div>
+      <p class="brand-eyebrow">綠理工程 · Greenli Engineering</p>
+      <h1>代辦板</h1>
+      <p class="top-sub">物料採購 &amp; 工作排程，一目了然</p>
+      <span id="modeBadge" class="mode-badge view" hidden></span>
+    </div>
+    <div class="top-right">
+      <div class="user-chip" id="userChip"></div>
+      <button id="addBtn" class="add-btn" hidden>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+        新增待辦
+      </button>
+    </div>
+  </header>
+
+  <div id="bannerZone"></div>
+
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="searchInput" type="text" placeholder="搜尋標題、品項、廠商…" />
+    </div>
+    <div class="seg" id="statusSeg">
+      <button data-val="pending" class="active">待處理</button>
+      <button data-val="done">已完成</button>
+      <button data-val="all">全部</button>
+    </div>
+    <select id="typeFilter" class="type-filter">
+      <option value="all">全部類型</option>
+      <option value="general">一般任務</option>
+      <option value="procurement">物料採購</option>
+    </select>
+  </div>
+
+  <div id="listZone">
+    <div class="loading-state">載入中…</div>
+  </div>
+</div>
+
+<!-- Add / Edit dialog -->
+<dialog id="editDialog">
+  <div class="dlg-head">
+    <h2 id="editDialogTitle">新增待辦</h2>
+    <button class="dlg-close" id="editDialogClose" aria-label="關閉">✕</button>
+  </div>
+  <div class="dlg-body">
+    <div class="field">
+      <label for="f_title">標題 *</label>
+      <input id="f_title" type="text" placeholder="例如：屋頂支架螺栓補件 / A棟配線檢查" />
+    </div>
+    <div class="field">
+      <label>類型</label>
+      <div class="type-toggle">
+        <button type="button" data-type="general" class="active general">一般任務</button>
+        <button type="button" data-type="procurement" class="procurement">物料採購</button>
+      </div>
+    </div>
+    <div id="procureFields" hidden>
+      <div class="field-row">
+        <div class="field"><label for="f_item">品項</label><input id="f_item" type="text" placeholder="例如：MC4 連接器" /></div>
+        <div class="field"><label for="f_qty">數量</label><input id="f_qty" type="text" placeholder="例如：50 組" /></div>
+      </div>
+      <div class="field"><label for="f_vendor">廠商</label><input id="f_vendor" type="text" placeholder="供應商名稱" /></div>
+    </div>
+    <div class="field">
+      <label for="f_due">到期日（選填）</label>
+      <input id="f_due" type="date" />
+    </div>
+    <div class="field">
+      <label for="f_notes">備註</label>
+      <textarea id="f_notes" rows="3" placeholder="補充說明…"></textarea>
+    </div>
+    <div class="field">
+      <label>照片</label>
+      <div class="photo-input-row" id="photoRow">
+        <button type="button" class="photo-add-btn" id="photoAddBtn">＋</button>
+      </div>
+      <input type="file" id="photoInput" accept="image/*" multiple hidden />
+      <p class="hint" id="photoHint">最多 5 張，會自動壓縮</p>
+    </div>
+  </div>
+  <div class="dlg-foot">
+    <button class="btn" id="cancelEditBtn">取消</button>
+    <button class="btn primary" id="saveTaskBtn">儲存</button>
+  </div>
+</dialog>
+
+<!-- Detail dialog -->
+<dialog id="detailDialog">
+  <div class="dlg-head">
+    <h2 id="detailTitle">待辦詳情</h2>
+    <button class="dlg-close" id="detailClose" aria-label="關閉">✕</button>
+  </div>
+  <div class="dlg-body">
+    <div class="detail-grid" id="detailBody"></div>
+  </div>
+  <div class="dlg-foot" id="detailFoot"></div>
+</dialog>
+
+<!-- Complete-confirm dialog -->
+<dialog id="completeDialog">
+  <div class="dlg-head">
+    <h2>標記為完成</h2>
+    <button class="dlg-close" id="completeDialogClose" aria-label="關閉">✕</button>
+  </div>
+  <div class="dlg-body">
+    <p style="font-size:14px;color:var(--text-muted);margin:0 0 12px;" id="completeTaskLabel"></p>
+    <div class="confirm-who" id="completeWho"></div>
+    <p class="hint">確認後會記錄你的帳號與完成時間，避免誤按。</p>
+  </div>
+  <div class="dlg-foot">
+    <button class="btn" id="completeCancelBtn">取消</button>
+    <button class="btn primary" id="completeConfirmBtn">確認完成</button>
+  </div>
+</dialog>
+
+<!-- Lightbox -->
+<dialog id="lightbox">
+  <img id="lightboxImg" src="" alt="照片放大" />
+</dialog>
+
+<!-- ============ Firebase SDK (compat) ============ -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+<script>
+(function(){
+  "use strict";
+
+  // =====================================================================
+  // 設定區：請依照 SETUP 說明文件，把下面兩個值換成你自己 Firebase 專案的資料。
+  // =====================================================================
+  var firebaseConfig = {
+    apiKey: "AIzaSyAMfUxUnF1UgnMHJcPUKBhuqZW58WdPqKk",
+    authDomain: "greenli-tasks.firebaseapp.com",
+    projectId: "greenli-tasks",
+    storageBucket: "greenli-tasks.firebasestorage.app",
+    messagingSenderId: "252600943368",
+    appId: "1:252600943368:web:8addfb1e447366021b62bd"
+  };
+  // 只有這個 Google 帳號的登入者，才有「新增／編輯／刪除」待辦的權限。
+  var ADMIN_EMAIL = "coin880709@gmail.com";
+  // =====================================================================
+
+  firebase.initializeApp(firebaseConfig);
+  var auth = firebase.auth();
+  var firestore = firebase.firestore();
+
+  // ---------- utils ----------
+  function todayStr(){
+    return new Date().toLocaleDateString('sv-SE', {timeZone:'Asia/Taipei'});
+  }
+  function nowIso(){ return new Date().toISOString(); }
+  function fmtDate(s){
+    if(!s) return '';
+    var p = s.split('-');
+    return p[0]+'/'+p[1]+'/'+p[2];
+  }
+  function fmtDateTime(iso){
+    if(!iso) return '';
+    try{
+      var d = new Date(iso);
+      return d.toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'}) + ' ' + d.toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei', hour:'2-digit', minute:'2-digit'});
+    }catch(e){ return iso; }
+  }
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function daysBetween(a,b){
+    var da = new Date(a+'T00:00:00'), db_ = new Date(b+'T00:00:00');
+    return Math.round((db_-da)/86400000);
+  }
+  function taskStatus(task, completion){
+    if(completion && completion.completed) return 'done';
+    if(!task.dueDate) return 'undated';
+    var d = daysBetween(todayStr(), task.dueDate);
+    if(d < 0) return 'overdue';
+    if(d <= 3) return 'soon';
+    return 'upcoming';
+  }
+
+  // ---------- state ----------
+  var isAdmin = false;
+  var currentUser = null;
+  var tasksById = {}, completionsById = {};
+  var filters = { status:'pending', type:'all', q:'' };
+  var currentEditId = null;
+  var currentPhotos = [];
+  var currentType = 'general';
+  var pendingCompleteTaskId = null;
+  var unsubTasks = null, unsubCompletions = null;
+
+  var MAX_PHOTOS = 5;
+  var MAX_PHOTO_CHARS = 750000; // headroom under Firestore's ~1MiB document cap
+
+  // ---------- dom refs ----------
+  var $ = function(id){ return document.getElementById(id); };
+  var listZone = $('listZone');
+  var bannerZone = $('bannerZone');
+  var editDialog = $('editDialog');
+  var detailDialog = $('detailDialog');
+  var completeDialog = $('completeDialog');
+  var lightbox = $('lightbox');
+
+  function showBanner(msg, kind){
+    bannerZone.innerHTML = '<div class="banner'+(kind==='info'?' info':'')+'">'+esc(msg)+'</div>';
+  }
+  function clearBanner(){ bannerZone.innerHTML=''; }
+
+  // ---------- auth ----------
+  $('googleSignInBtn').addEventListener('click', function(){
+    $('authGateError').textContent = '';
+    var provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider).catch(function(e){
+      $('authGateError').textContent = '登入失敗：'+e.message;
+    });
+  });
+
+  auth.onAuthStateChanged(function(user){
+    if(!user){
+      currentUser = null;
+      $('authGate').hidden = false;
+      $('app').hidden = true;
+      if(unsubTasks){ unsubTasks(); unsubTasks=null; }
+      if(unsubCompletions){ unsubCompletions(); unsubCompletions=null; }
+      return;
+    }
+    currentUser = user;
+    isAdmin = (user.email === ADMIN_EMAIL);
+    $('authGate').hidden = true;
+    $('app').hidden = false;
+    renderUserChip();
+    renderAdminUI();
+    subscribe();
+    bindEventsOnce();
+  });
+
+  function renderUserChip(){
+    var html = '';
+    if(currentUser.photoURL) html += '<img src="'+currentUser.photoURL+'" alt="" />';
+    html += '<span>'+esc(currentUser.displayName || currentUser.email)+'</span>';
+    html += '<button id="signOutBtn">登出</button>';
+    $('userChip').innerHTML = html;
+    $('signOutBtn').addEventListener('click', function(){ auth.signOut(); });
+  }
+
+  function renderAdminUI(){
+    var badge = $('modeBadge');
+    badge.hidden = false;
+    if(isAdmin){
+      badge.className = 'mode-badge admin';
+      badge.textContent = '🔧 管理模式';
+      $('addBtn').hidden = false;
+    }else{
+      badge.className = 'mode-badge view';
+      badge.textContent = '👁 檢視模式';
+      $('addBtn').hidden = true;
+    }
+  }
+
+  // ---------- data subscribe ----------
+  function subscribe(){
+    unsubTasks = firestore.collection('tasks').limit(500).onSnapshot(function(snap){
+      tasksById = {};
+      snap.forEach(function(d){ tasksById[d.id] = Object.assign({id:d.id}, d.data()); });
+      clearBanner();
+      render();
+    }, function(err){
+      showBanner('待辦事項載入失敗：'+err.message);
+    });
+    unsubCompletions = firestore.collection('completions').limit(500).onSnapshot(function(snap){
+      completionsById = {};
+      snap.forEach(function(d){ completionsById[d.id] = d.data(); });
+      render();
+    }, function(err){
+      showBanner('完成狀態載入失敗：'+err.message);
+    });
+  }
+
+  // ---------- render list ----------
+  function render(){
+    var all = Object.keys(tasksById).map(function(id){ return tasksById[id]; });
+    var q = filters.q.trim().toLowerCase();
+
+    var filtered = all.filter(function(t){
+      if(filters.type !== 'all' && t.type !== filters.type) return false;
+      var completion = completionsById[t.id];
+      var status = taskStatus(t, completion);
+      if(filters.status === 'pending' && status === 'done') return false;
+      if(filters.status === 'done' && status !== 'done') return false;
+      if(q){
+        var hay = [t.title, t.item, t.vendor, t.notes].filter(Boolean).join(' ').toLowerCase();
+        if(hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+
+    if(filtered.length === 0){
+      listZone.innerHTML = '<div class="empty-state">'+
+        (all.length===0 ? '目前還沒有待辦事項' + (isAdmin ? '，點右上角「新增待辦」開始建立。' : '。') : '沒有符合條件的項目') +
+        '</div>';
+      return;
+    }
+
+    var buckets = { overdue:[], soon:[], upcoming:[], undated:[], done:[] };
+    filtered.forEach(function(t){
+      var c = completionsById[t.id];
+      buckets[taskStatus(t,c)].push(t);
+    });
+
+    function byDue(a,b){ return (a.dueDate||'9999').localeCompare(b.dueDate||'9999'); }
+    buckets.overdue.sort(byDue);
+    buckets.soon.sort(byDue);
+    buckets.upcoming.sort(byDue);
+    buckets.undated.sort(function(a,b){ return (b.createdAt||'').localeCompare(a.createdAt||''); });
+    buckets.done.sort(function(a,b){
+      var ca = (completionsById[a.id]||{}).completedAt||'';
+      var cb = (completionsById[b.id]||{}).completedAt||'';
+      return cb.localeCompare(ca);
+    });
+
+    var groups = [
+      {key:'overdue', label:'已逾期', cls:'overdue', items:buckets.overdue},
+      {key:'soon', label:'即將到期（3天內）', cls:'soon', items:buckets.soon},
+      {key:'upcoming', label:'待處理', cls:'', items:buckets.upcoming},
+      {key:'undated', label:'未排定日期', cls:'', items:buckets.undated},
+      {key:'done', label:'已完成', cls:'', items:buckets.done}
+    ];
+
+    var html = '';
+    groups.forEach(function(g){
+      if(g.items.length === 0) return;
+      html += '<div class="group">';
+      html += '<p class="group-title '+g.cls+'">'+g.label+' <span class="count num">('+g.items.length+')</span></p>';
+      html += '<div class="card-list">';
+      g.items.forEach(function(t){ html += renderRow(t, completionsById[t.id]); });
+      html += '</div></div>';
+    });
+    listZone.innerHTML = html;
+
+    listZone.querySelectorAll('.task-row').forEach(function(row){
+      row.addEventListener('click', function(e){
+        if(e.target.closest('.check-btn')) return;
+        openDetail(row.dataset.id);
+      });
+    });
+    listZone.querySelectorAll('.check-btn').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var id = btn.closest('.task-row').dataset.id;
+        var c = completionsById[id];
+        if(c && c.completed){
+          if(isAdmin) unmarkComplete(id);
+        }else{
+          openCompleteDialog(id);
+        }
+      });
+    });
+  }
+
+  function renderRow(t, completion){
+    var status = taskStatus(t, completion);
+    var done = status === 'done';
+    var typeChip = t.type === 'procurement'
+      ? '<span class="chip type-procurement">🛒 物料採購</span>'
+      : '<span class="chip type-general">📋 一般任務</span>';
+    var dueChip = '';
+    if(t.dueDate){
+      var cls = status==='overdue' ? 'due-overdue' : (status==='soon' ? 'due-soon' : 'due-normal');
+      dueChip = '<span class="chip '+cls+'">📅 <span class="num">'+fmtDate(t.dueDate)+'</span></span>';
+    }
+    var doneChip = done ? '<span class="chip done-chip">✓ '+esc(completion.completedBy||'')+'</span>' : '';
+    var photoBadge = (t.photos && t.photos.length) ? '<span class="photo-count">🖼 '+t.photos.length+'</span>' : '';
+    var subline = t.type === 'procurement' && (t.item || t.vendor)
+      ? '<div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">'+esc([t.item, t.vendor].filter(Boolean).join(' · '))+'</div>' : '';
+
+    return '<div class="task-row '+(done?'done ':'')+status+'" data-id="'+t.id+'">'+
+      '<div class="stripe"></div>'+
+      '<button class="check-btn '+(done?'done':'')+'" aria-label="'+(done?'取消完成':'標記完成')+'">'+
+        (done ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>' : '')+
+      '</button>'+
+      '<div class="row-body">'+
+        '<div class="row-top"><span class="row-title">'+esc(t.title)+'</span></div>'+
+        subline+
+        '<div class="row-meta">'+typeChip+dueChip+doneChip+photoBadge+'</div>'+
+      '</div>'+
+    '</div>';
+  }
+
+  // ---------- detail dialog ----------
+  function openDetail(id){
+    var t = tasksById[id];
+    if(!t) return;
+    var c = completionsById[id];
+    var status = taskStatus(t, c);
+    $('detailTitle').textContent = t.title;
+
+    var html = '';
+    html += '<div><div class="detail-row-label">類型</div>' +
+      (t.type==='procurement' ? '<span class="chip type-procurement">🛒 物料採購</span>' : '<span class="chip type-general">📋 一般任務</span>') +
+      '</div>';
+
+    if(t.dueDate){
+      var cls = status==='overdue' ? 'due-overdue' : (status==='soon' ? 'due-soon' : 'due-normal');
+      html += '<div><div class="detail-row-label">到期日</div><span class="chip '+cls+'">📅 <span class="num">'+fmtDate(t.dueDate)+'</span>'+(status==='overdue'?'（已逾期）':'')+'</span></div>';
+    }
+
+    if(t.type === 'procurement' && (t.item || t.qty || t.vendor)){
+      html += '<div><div class="detail-row-label">採購資訊</div><dl class="procure-table">';
+      if(t.item) html += '<dt>品項</dt><dd>'+esc(t.item)+'</dd>';
+      if(t.qty) html += '<dt>數量</dt><dd class="num">'+esc(t.qty)+'</dd>';
+      if(t.vendor) html += '<dt>廠商</dt><dd>'+esc(t.vendor)+'</dd>';
+      html += '</dl></div>';
+    }
+
+    if(t.notes){
+      html += '<div><div class="detail-row-label">備註</div><div class="detail-notes">'+esc(t.notes)+'</div></div>';
+    }
+
+    if(t.photos && t.photos.length){
+      html += '<div><div class="detail-row-label">照片（'+t.photos.length+'）</div><div class="gallery">';
+      t.photos.forEach(function(p, i){ html += '<img src="'+p+'" data-idx="'+i+'" alt="照片 '+(i+1)+'" />'; });
+      html += '</div></div>';
+    }
+
+    if(c && c.completed){
+      html += '<div class="complete-box">✓ 已完成 — '+esc(c.completedBy)+'（'+fmtDateTime(c.completedAt)+'）</div>';
+    }else{
+      html += '<div class="complete-box pending">⬜ 尚未完成</div>';
+    }
+
+    html += '<div class="detail-foot-meta">建立於 '+fmtDateTime(t.createdAt)+(t.updatedAt && t.updatedAt!==t.createdAt ? ' · 更新於 '+fmtDateTime(t.updatedAt) : '')+'</div>';
+
+    $('detailBody').innerHTML = html;
+    $('detailBody').querySelectorAll('.gallery img').forEach(function(img){
+      img.addEventListener('click', function(){
+        $('lightboxImg').src = img.src;
+        lightbox.showModal();
+      });
+    });
+
+    var footHtml = '';
+    if(!(c && c.completed)){
+      footHtml += '<button class="btn primary" id="detailCompleteBtn">標記完成</button>';
+    }else if(isAdmin){
+      footHtml += '<button class="btn" id="detailUnmarkBtn">取消完成</button>';
+    }
+    if(isAdmin){
+      footHtml += '<button class="btn" id="detailEditBtn">編輯</button>';
+      footHtml += '<button class="btn danger" id="detailDeleteBtn">刪除</button>';
+    }
+    $('detailFoot').innerHTML = footHtml;
+
+    var completeBtn = $('detailCompleteBtn');
+    if(completeBtn) completeBtn.addEventListener('click', function(){ detailDialog.close(); openCompleteDialog(id); });
+    var unmarkBtn = $('detailUnmarkBtn');
+    if(unmarkBtn) unmarkBtn.addEventListener('click', function(){ unmarkComplete(id); detailDialog.close(); });
+    var editBtn = $('detailEditBtn');
+    if(editBtn) editBtn.addEventListener('click', function(){ detailDialog.close(); openEditDialog(id); });
+    var delBtn = $('detailDeleteBtn');
+    if(delBtn) delBtn.addEventListener('click', function(){ deleteTask(id); detailDialog.close(); });
+
+    detailDialog.showModal();
+  }
+
+  // ---------- complete flow ----------
+  function openCompleteDialog(id){
+    var t = tasksById[id];
+    pendingCompleteTaskId = id;
+    $('completeTaskLabel').textContent = t ? t.title : '';
+    $('completeWho').textContent = '以「'+(currentUser.displayName || currentUser.email)+'」身分標記完成';
+    completeDialog.showModal();
+  }
+  async function confirmComplete(){
+    var id = pendingCompleteTaskId;
+    try{
+      await firestore.collection('completions').doc(id).set({
+        completed:true,
+        completedBy: currentUser.displayName || currentUser.email,
+        completedByEmail: currentUser.email,
+        completedAt: nowIso()
+      });
+      completeDialog.close();
+    }catch(e){
+      alert('無法標記完成：'+e.message);
+    }
+  }
+  async function unmarkComplete(id){
+    try{
+      await firestore.collection('completions').doc(id).delete();
+    }catch(e){
+      alert('無法取消完成：'+e.message);
+    }
+  }
+
+  // ---------- add / edit ----------
+  function resetForm(){
+    $('f_title').value = '';
+    $('f_item').value = '';
+    $('f_qty').value = '';
+    $('f_vendor').value = '';
+    $('f_due').value = '';
+    $('f_notes').value = '';
+    currentPhotos = [];
+    currentType = 'general';
+    renderPhotoRow();
+    setTypeToggle('general');
+  }
+  function setTypeToggle(type){
+    currentType = type;
+    document.querySelectorAll('.type-toggle button').forEach(function(b){
+      b.classList.toggle('active', b.dataset.type === type);
+    });
+    $('procureFields').hidden = type !== 'procurement';
+  }
+  function renderPhotoRow(){
+    var row = $('photoRow');
+    var html = '';
+    currentPhotos.forEach(function(p, i){
+      html += '<div class="photo-thumb"><img src="'+p+'"/><button type="button" data-i="'+i+'">✕</button></div>';
+    });
+    if(currentPhotos.length < MAX_PHOTOS){
+      html += '<button type="button" class="photo-add-btn" id="photoAddBtn">＋</button>';
+    }
+    row.innerHTML = html;
+    var addBtn = $('photoAddBtn');
+    if(addBtn) addBtn.addEventListener('click', function(){ $('photoInput').click(); });
+    row.querySelectorAll('.photo-thumb button').forEach(function(b){
+      b.addEventListener('click', function(){
+        currentPhotos.splice(parseInt(b.dataset.i,10),1);
+        renderPhotoRow();
+      });
+    });
+  }
+  function compressImage(file, maxDim, quality){
+    return new Promise(function(resolve, reject){
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function(){
+        var w = img.width, h = img.height;
+        if(w > maxDim || h > maxDim){
+          if(w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
+          else{ w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('圖片讀取失敗')); };
+      img.src = url;
+    });
+  }
+  async function handlePhotoFiles(files){
+    var hint = $('photoHint');
+    for(var i=0; i<files.length; i++){
+      if(currentPhotos.length >= MAX_PHOTOS){
+        hint.textContent = '最多只能加 '+MAX_PHOTOS+' 張照片';
+        hint.className = 'hint warn';
+        break;
+      }
+      try{
+        var dataUrl = await compressImage(files[i], 800, 0.6);
+        var total = currentPhotos.join('').length + dataUrl.length;
+        if(total > MAX_PHOTO_CHARS){
+          hint.textContent = '照片總容量太大，請刪除一些或換較小的照片';
+          hint.className = 'hint warn';
+          continue;
+        }
+        currentPhotos.push(dataUrl);
+        renderPhotoRow();
+        hint.textContent = '最多 5 張，會自動壓縮';
+        hint.className = 'hint';
+      }catch(e){
+        hint.textContent = '照片處理失敗：'+e.message;
+        hint.className = 'hint warn';
+      }
+    }
+  }
+
+  function openEditDialog(id){
+    currentEditId = id || null;
+    resetForm();
+    if(id){
+      var t = tasksById[id];
+      $('editDialogTitle').textContent = '編輯待辦';
+      $('f_title').value = t.title || '';
+      $('f_item').value = t.item || '';
+      $('f_qty').value = t.qty || '';
+      $('f_vendor').value = t.vendor || '';
+      $('f_due').value = t.dueDate || '';
+      $('f_notes').value = t.notes || '';
+      currentPhotos = (t.photos || []).slice();
+      renderPhotoRow();
+      setTypeToggle(t.type || 'general');
+    }else{
+      $('editDialogTitle').textContent = '新增待辦';
+    }
+    editDialog.showModal();
+  }
+
+  async function saveTask(){
+    var title = $('f_title').value.trim();
+    if(!title){ $('f_title').focus(); return; }
+    var data = {
+      title: title,
+      type: currentType,
+      dueDate: $('f_due').value || null,
+      notes: $('f_notes').value.trim() || null,
+      item: currentType === 'procurement' ? ($('f_item').value.trim() || null) : null,
+      qty: currentType === 'procurement' ? ($('f_qty').value.trim() || null) : null,
+      vendor: currentType === 'procurement' ? ($('f_vendor').value.trim() || null) : null,
+      photos: currentPhotos.slice(),
+      updatedAt: nowIso()
+    };
+    var saveBtn = $('saveTaskBtn');
+    saveBtn.disabled = true;
+    try{
+      if(currentEditId){
+        await firestore.collection('tasks').doc(currentEditId).update(data);
+      }else{
+        data.createdAt = nowIso();
+        await firestore.collection('tasks').add(data);
+      }
+      editDialog.close();
+    }catch(e){
+      alert('儲存失敗：'+e.message);
+    }finally{
+      saveBtn.disabled = false;
+    }
+  }
+
+  async function deleteTask(id){
+    if(!confirm('確定要刪除這個待辦事項嗎？此動作無法復原。')) return;
+    try{
+      await firestore.collection('tasks').doc(id).delete();
+      firestore.collection('completions').doc(id).delete().catch(function(){});
+    }catch(e){
+      alert('刪除失敗：'+e.message);
+    }
+  }
+
+  // ---------- events ----------
+  var eventsBound = false;
+  function bindEventsOnce(){
+    if(eventsBound) return;
+    eventsBound = true;
+
+    $('addBtn').addEventListener('click', function(){ openEditDialog(null); });
+    $('editDialogClose').addEventListener('click', function(){ editDialog.close(); });
+    $('cancelEditBtn').addEventListener('click', function(){ editDialog.close(); });
+    $('saveTaskBtn').addEventListener('click', saveTask);
+    $('detailClose').addEventListener('click', function(){ detailDialog.close(); });
+    $('completeDialogClose').addEventListener('click', function(){ completeDialog.close(); });
+    $('completeCancelBtn').addEventListener('click', function(){ completeDialog.close(); });
+    $('completeConfirmBtn').addEventListener('click', confirmComplete);
+
+    document.querySelectorAll('.type-toggle button').forEach(function(b){
+      b.addEventListener('click', function(){ setTypeToggle(b.dataset.type); });
+    });
+    $('photoInput').addEventListener('change', function(e){
+      if(e.target.files.length) handlePhotoFiles(e.target.files);
+      e.target.value = '';
+    });
+    document.addEventListener('click', function(e){
+      if(e.target && e.target.id === 'photoAddBtn') $('photoInput').click();
+    });
+
+    $('statusSeg').querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click', function(){
+        filters.status = b.dataset.val;
+        $('statusSeg').querySelectorAll('button').forEach(function(x){ x.classList.toggle('active', x===b); });
+        render();
+      });
+    });
+    $('typeFilter').addEventListener('change', function(){ filters.type = this.value; render(); });
+    $('searchInput').addEventListener('input', function(){ filters.q = this.value; render(); });
+
+    [editDialog, detailDialog, completeDialog, lightbox].forEach(function(dlg){
+      dlg.addEventListener('click', function(e){
+        var rect = dlg.getBoundingClientRect();
+        var inside = rect.top <= e.clientY && e.clientY <= rect.top+rect.height && rect.left <= e.clientX && e.clientX <= rect.left+rect.width;
+        if(!inside) dlg.close();
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>
