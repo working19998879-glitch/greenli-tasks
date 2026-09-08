@@ -2347,26 +2347,40 @@
     $('searchInput').addEventListener('input', function(){ filters.q = this.value; renderTree(); });
 
     [editDialog, completeDialog, moveDialog, duplicateDialog, usersDialog, projectsDialog, activityDialog, lightbox].forEach(function(dlg){
+      // A real backdrop click should close the dialog; a click on content
+      // inside it should not. Gating this purely on "e.target === dlg"
+      // (real backdrop clicks target the dialog itself) has three
+      // failure modes we've hit in practice:
+      //  1) A programmatic .click() (e.g. opening the hidden file input)
+      //     fires a synthetic click at (0,0) that bubbles up to the
+      //     dialog and would look like a backdrop click.
+      //  2) In some browsers, clicking a form control inside a
+      //     *scrolled/overflowing* dialog body (e.g. an existing
+      //     checklist item's text input, once the checklist grows tall
+      //     enough to scroll) can mis-target the click at the <dialog>
+      //     element itself instead of the control.
+      //  3) Selecting/copying text: mousedown starts inside the dialog's
+      //     content (e.g. dragging across a few rows in 編輯紀錄/帳號管理
+      //     to copy them), but an ordinary drag easily overshoots the
+      //     dialog's edge before the mouse button is released — that
+      //     mouseup (and the resulting click) lands on the backdrop, so
+      //     e.target === dlg even though this was never an intent to
+      //     close anything.
+      // e.isTrusted rules out (1). A coordinate check against the
+      // dialog's own rendered box rules out (2). For (3), we also track
+      // where the mousedown that started this click happened — a real
+      // backdrop click starts AND ends on the backdrop; a text-selection
+      // drag starts inside the content, so requiring the mousedown to
+      // have also targeted the dialog itself is what actually
+      // distinguishes "clicked the backdrop" from "dragged out of the
+      // content and let go over the backdrop".
+      var mousedownOnBackdrop = false;
+      dlg.addEventListener('mousedown', function(e){
+        mousedownOnBackdrop = e.isTrusted && e.target === dlg;
+      });
       dlg.addEventListener('click', function(e){
-        // A real backdrop click should close the dialog; a click on
-        // content inside it should not. We used to gate this purely on
-        // "e.target === dlg" (real backdrop clicks target the dialog
-        // itself), but that alone has two failure modes:
-        //  1) A programmatic .click() (e.g. opening the hidden file
-        //     input) fires a synthetic click at (0,0) that bubbles up
-        //     to the dialog and would look like a backdrop click.
-        //  2) In some browsers, clicking a form control inside a
-        //     *scrolled/overflowing* dialog body (e.g. an existing
-        //     checklist item's text input, once the checklist grows
-        //     tall enough to scroll) can mis-target the click at the
-        //     <dialog> element itself instead of the control, closing
-        //     the dialog out from under the user mid-edit.
-        // e.isTrusted rules out (1): synthetic clicks are never
-        // trusted. A coordinate check against the dialog's own
-        // rendered box rules out (2): if the click point is actually
-        // inside the visible dialog, it can't be a real backdrop
-        // click no matter what e.target says.
         if(!e.isTrusted) return;
+        if(!mousedownOnBackdrop) return;
         if(e.target !== dlg) return;
         var r = dlg.getBoundingClientRect();
         var inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
