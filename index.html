@@ -169,6 +169,15 @@
   }
   .checklist-remove-btn:hover{ color:var(--danger); }
 
+  /* drag-to-reorder handle shared by 小項核對/採購品項 edit rows */
+  .reorder-row.dragging{ opacity:.55; }
+  .drag-handle{
+    cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none;
+    color:var(--text-faint); font-size:16px; line-height:1; padding:4px 2px; flex-shrink:0;
+  }
+  .drag-handle:hover{ color:var(--text-muted); }
+  .drag-handle:active{ cursor:grabbing; }
+
   /* ---------- right-click quick-action menu ---------- */
   .ctx-menu{
     position:fixed; z-index:50; background:var(--surface); border:1px solid var(--border-strong);
@@ -904,12 +913,18 @@
     var uref = firestore.collection('users').doc(currentUser.uid);
     uref.get().then(function(snap){
       if(!snap.exists){
+        // Everyone who signs in gets full 檢視+編輯 access immediately —
+        // no admin approval step. This is a deliberate policy change: the
+        // Firestore rules' `create` check for this collection now requires
+        // allowed/canEdit to both be true (see SETUP-說明.md), so an admin
+        // can still revoke a specific account afterward via 帳號管理, but
+        // there's no longer a gate before first use.
         return uref.set({
           email: currentUser.email,
           displayName: currentUser.displayName || '',
           photoURL: currentUser.photoURL || '',
-          allowed: false,
-          canEdit: false,
+          allowed: true,
+          canEdit: true,
           createdAt: nowIso(),
           lastSeenAt: nowIso()
         });
@@ -1989,11 +2004,69 @@
     renderProcureRow();
     setTypeToggle(['general']);
   }
+  // Shared touch-friendly drag-to-reorder for the 小項核對/採購品項 edit
+  // rows. Uses Pointer Events (not native HTML5 drag-and-drop, which
+  // mobile Safari/Chrome don't support via touch) and only starts from a
+  // dedicated ⠿ handle — so dragging to select/copy text inside a row's
+  // own inputs still works normally, the same care taken for the dialog
+  // backdrop-close fix (a generic "drag anywhere in here" listener always
+  // ends up swallowing an unrelated gesture).
+  //
+  // During the drag we just move the actual DOM row node around (cheap,
+  // and keeps the handle's pointer capture alive) rather than re-render
+  // on every frame; only on drop do we read the row order back off the
+  // DOM — matching each row to its array entry by the item's own stable
+  // `id` rather than by index, since positions just changed — and hand
+  // off to a normal full re-render.
+  function makeReorderable(container, getArr, rerenderFn){
+    container.querySelectorAll('.reorder-row').forEach(function(row){
+      var handle = row.querySelector('.drag-handle');
+      if(!handle) return;
+      handle.addEventListener('pointerdown', function(e){
+        e.preventDefault();
+        handle.setPointerCapture(e.pointerId);
+        row.classList.add('dragging');
+        function onMove(ev){
+          var siblings = Array.prototype.slice.call(container.children).filter(function(el){ return el !== row; });
+          var placed = false;
+          for(var i=0;i<siblings.length;i++){
+            var r = siblings[i].getBoundingClientRect();
+            if(ev.clientY < r.top + r.height/2){
+              container.insertBefore(row, siblings[i]);
+              placed = true;
+              break;
+            }
+          }
+          if(!placed) container.appendChild(row);
+          // insertBefore/appendChild transiently detach-and-reinsert the
+          // node even though it stays connected to the document, which
+          // silently releases the handle's pointer capture — reacquire it
+          // immediately so the drag keeps tracking this same handle instead
+          // of falling through to whichever row the cursor lands on next.
+          try{ handle.setPointerCapture(ev.pointerId); }catch(err){}
+        }
+        function onUp(){
+          handle.releasePointerCapture(e.pointerId);
+          handle.removeEventListener('pointermove', onMove);
+          handle.removeEventListener('pointerup', onUp);
+          row.classList.remove('dragging');
+          var arr = getArr();
+          var order = Array.prototype.slice.call(container.children).map(function(el){ return el.dataset.itemId; });
+          arr.sort(function(a,b){ return order.indexOf(a.id) - order.indexOf(b.id); });
+          rerenderFn();
+        }
+        handle.addEventListener('pointermove', onMove);
+        handle.addEventListener('pointerup', onUp);
+      });
+    });
+  }
+  var DRAG_HANDLE_HTML = '<span class="drag-handle" aria-label="拖曳排序" title="拖曳排序">⠿</span>';
   function renderChecklistRow(){
     var wrap = $('checklistRows');
     if(!wrap) return;
     wrap.innerHTML = currentChecklist.map(function(it, idx){
-      return '<div class="checklist-edit-row">'+
+      return '<div class="checklist-edit-row reorder-row" data-idx="'+idx+'" data-item-id="'+esc(it.id)+'">'+
+        DRAG_HANDLE_HTML+
         '<input type="text" class="checklist-edit-input" data-idx="'+idx+'" value="'+esc(it.text)+'" placeholder="第 '+(idx+1)+' 項…" />'+
         '<button type="button" class="checklist-remove-btn" data-idx="'+idx+'" aria-label="刪除">✕</button>'+
       '</div>';
@@ -2007,14 +2080,16 @@
         renderChecklistRow();
       });
     });
+    makeReorderable(wrap, function(){ return currentChecklist; }, renderChecklistRow);
   }
   // Procurement line-items editor: one row per 品項/數量/廠商, same
-  // add/remove pattern as the checklist editor above.
+  // add/remove (and now drag-reorder) pattern as the checklist editor above.
   function renderProcureRow(){
     var wrap = $('procureRows');
     if(!wrap) return;
     wrap.innerHTML = currentProcureItems.map(function(it, idx){
-      return '<div class="procure-edit-row">'+
+      return '<div class="procure-edit-row reorder-row" data-idx="'+idx+'" data-item-id="'+esc(it.id)+'">'+
+        DRAG_HANDLE_HTML+
         '<input type="text" class="pe-item" data-idx="'+idx+'" data-field="item" value="'+esc(it.item)+'" placeholder="品項，例如 MC4 連接器" />'+
         '<input type="text" class="pe-qty" data-idx="'+idx+'" data-field="qty" value="'+esc(it.qty)+'" placeholder="數量" />'+
         '<input type="text" class="pe-vendor" data-idx="'+idx+'" data-field="vendor" value="'+esc(it.vendor)+'" placeholder="廠商" />'+
@@ -2032,6 +2107,7 @@
         renderProcureRow();
       });
     });
+    makeReorderable(wrap, function(){ return currentProcureItems; }, renderProcureRow);
   }
   // Type is multi-select: `types` can hold 'general' and/or 'procurement'
   // at once. `types` is a full replacement array; toggleType() flips one
