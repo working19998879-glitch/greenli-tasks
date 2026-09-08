@@ -306,6 +306,19 @@
   .field-row{ display:flex; gap:10px; }
   .field-row .field{ flex:1; }
 
+  /* 所屬案件 combobox: a plain text input that filters a click-to-select
+     dropdown (typing "仁德" narrows the list to matching 案件 names), with
+     an always-available "＋ 新增案件" row at the bottom. */
+  .combo{ position:relative; }
+  .combo-list{
+    position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:20;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-m);
+    box-shadow:var(--shadow-m); max-height:220px; overflow-y:auto;
+  }
+  .combo-option{ padding:9px 12px; font-size:13.5px; cursor:pointer; }
+  .combo-option:hover{ background:var(--surface-2); }
+  .combo-option.combo-new{ color:var(--text-muted); border-top:1px solid var(--border); }
+
   .type-toggle{ display:flex; gap:8px; }
   .type-toggle button{
     flex:1; border:1px solid var(--border-strong); background:var(--surface-2); border-radius:var(--radius-s);
@@ -485,8 +498,12 @@
   </div>
   <div class="dlg-body">
     <div class="field">
-      <label for="f_project">所屬案件</label>
-      <select id="f_project"><option value="">請選擇案件…</option></select>
+      <label for="f_project_input">所屬案件</label>
+      <div class="combo" id="projectCombo">
+        <input type="text" id="f_project_input" placeholder="輸入或點選案件…" autocomplete="off" />
+        <input type="hidden" id="f_project" value="" />
+        <div class="combo-list" id="projectComboList" hidden></div>
+      </div>
     </div>
     <div class="field">
       <label for="f_title">標題 *</label>
@@ -1178,7 +1195,6 @@
     unsubProjects = firestore.collection('projects').onSnapshot(function(snap){
       projectsById = {};
       snap.forEach(function(d){ projectsById[d.id] = Object.assign({id:d.id}, d.data()); });
-      renderProjectOptions();
       renderTree();
     }, function(err){
       showBanner('案件清單載入失敗：'+err.message);
@@ -1193,17 +1209,79 @@
     if(pid === UNASSIGNED_PROJECT_ID) return '未分類';
     return (projectsById[pid] && projectsById[pid].name) || '未分類';
   }
-  // populate both the "新增/編輯待辦" dialog's project select and (if a
-  // projects-management dialog is open) keep it fresh
-  function renderProjectOptions(){
-    var editSel = $('f_project');
-    if(!editSel) return;
-    var cur = editSel.value;
-    var html = '<option value="">請選擇案件…</option>';
-    sortedProjects().forEach(function(p){ html += '<option value="'+p.id+'">'+esc(p.name)+'</option>'; });
-    html += '<option value="__new__">＋ 新增案件…</option>';
-    editSel.innerHTML = html;
-    if([].slice.call(editSel.options).some(function(o){ return o.value === cur; })) editSel.value = cur;
+  // ---------- 所屬案件 combobox (新增/編輯待辦 dialog) ----------
+  // A plain text input backed by a hidden #f_project holding the actual
+  // project id ('' = 未分類). Typing filters the dropdown by substring
+  // match on project name (e.g. typing "仁德" narrows to any 案件 whose
+  // name contains 仁德); leaving it empty and just focusing shows every
+  // 案件 so it still works as a plain picker. A "＋ 新增案件" row is
+  // always available at the bottom of the list.
+  function comboLabelFor(pid){
+    if(!pid) return '未分類';
+    return (projectsById[pid] && projectsById[pid].name) || '未分類';
+  }
+  function setProjectCombo(pid){
+    pid = pid || '';
+    $('f_project').value = pid;
+    $('f_project_input').value = comboLabelFor(pid);
+  }
+  // The single project currently expanded in the tree (if any) — accordion
+  // behavior guarantees at most one, see wireTreeEvents()'s proj-header
+  // click handler. Used to smart-default 新增代辦's 所屬案件.
+  function currentOpenProjectId(){
+    var keys = Object.keys(expandedProjects).filter(function(k){ return expandedProjects[k]; });
+    return keys.length ? keys[0] : null;
+  }
+  function comboProjectMatches(query){
+    var q = (query || '').trim().toLowerCase();
+    var opts = [{ id: '', name: '未分類' }].concat(
+      sortedProjects().map(function(p){ return { id: p.id, name: p.name }; })
+    );
+    if(!q) return opts;
+    return opts.filter(function(o){ return o.name.toLowerCase().indexOf(q) !== -1; });
+  }
+  function renderProjectCombo(query){
+    var list = $('projectComboList');
+    var typed = (query || '').trim();
+    var html = comboProjectMatches(query).map(function(o){
+      return '<div class="combo-option" data-id="'+esc(o.id)+'" data-name="'+esc(o.name)+'">'+esc(o.name)+'</div>';
+    }).join('');
+    html += '<div class="combo-option combo-new" data-new="1">＋ 新增案件'+(typed ? '「'+esc(typed)+'」' : '…')+'</div>';
+    list.innerHTML = html;
+    list.hidden = false;
+    list.querySelectorAll('.combo-option').forEach(function(opt){
+      // mousedown (not click) fires before the input's blur handler, so
+      // the selection registers before renderProjectCombo's blur-triggered
+      // revert would otherwise stomp on it.
+      opt.addEventListener('mousedown', function(e){
+        e.preventDefault();
+        if(opt.dataset.new){ createProjectFromCombo($('f_project_input').value.trim()); }
+        else{ setProjectCombo(opt.dataset.id); list.hidden = true; }
+      });
+    });
+  }
+  function createProjectFromCombo(typedName){
+    var name = typedName;
+    if(!name){
+      name = window.prompt('新案件名稱：');
+      if(!name || !name.trim()) return;
+    }
+    name = name.trim();
+    var createdAt = nowIso();
+    firestore.collection('projects').add({
+      name: name, createdAt: createdAt,
+      createdByUid: currentUser.uid, createdByName: myDisplayName(), createdByEmail: currentUser.email
+    }).then(function(ref){
+      projectsById[ref.id] = {
+        id: ref.id, name: name, createdAt: createdAt,
+        createdByUid: currentUser.uid, createdByName: myDisplayName(), createdByEmail: currentUser.email
+      };
+      setProjectCombo(ref.id);
+      $('projectComboList').hidden = true;
+      logActivity('create', 'project', ref.id, name);
+    }).catch(function(e){
+      alert('新增案件失敗：'+e.message);
+    });
   }
   function projectTaskCounts(pid){
     var tasks = Object.keys(tasksById).map(function(id){ return tasksById[id]; })
@@ -1344,20 +1422,34 @@
     zone.querySelectorAll('.proj-header').forEach(function(btn){
       var pid = btn.dataset.pid;
       btn.addEventListener('click', function(){
-        expandedProjects[pid] = !btn.classList.contains('open');
+        if(btn.classList.contains('open')){
+          collapseProject(pid);
+        }else{
+          // accordion: only one 案件卡 stays open at a time, so opening
+          // this one first collapses whichever other one is open (which
+          // also resets its own tasks — see collapseProject()).
+          Object.keys(expandedProjects).forEach(function(k){
+            if(k !== pid && expandedProjects[k]) collapseProject(k);
+          });
+          expandedProjects[pid] = true;
+        }
         renderTree();
       });
-      if(!btn.classList.contains('no-ctx')){
-        btn.addEventListener('contextmenu', function(e){
-          e.preventDefault();
+      btn.addEventListener('contextmenu', function(e){
+        e.preventDefault();
+        var items = [];
+        if(isAdmin || isEditor){
+          items.push({ label: '＋ 新增代辦', onClick: function(){ openEditDialog(null, pid); } });
+        }
+        if(!btn.classList.contains('no-ctx')){
           var p = projectsById[pid];
-          if(!p) return;
-          var items = [];
-          if(isAdmin || isEditor) items.push({ label: '✎ 重新命名', onClick: function(){ renameProject(pid); } });
-          if(canDeleteProject(p)) items.push({ label: '🗑 刪除', danger: true, onClick: function(){ deleteProjectFlow(pid); } });
-          showCtxMenu(e.clientX, e.clientY, items);
-        });
-      }
+          if(p){
+            if(isAdmin || isEditor) items.push({ label: '✎ 重新命名', onClick: function(){ renameProject(pid); } });
+            if(canDeleteProject(p)) items.push({ label: '🗑 刪除', danger: true, onClick: function(){ deleteProjectFlow(pid); } });
+          }
+        }
+        if(items.length) showCtxMenu(e.clientX, e.clientY, items);
+      });
     });
     zone.querySelectorAll('.task-row').forEach(function(row){
       row.addEventListener('click', function(e){
@@ -1397,19 +1489,37 @@
       wireTaskDetail(det, det.dataset.id);
     });
   }
+  // Collapses one task's inline detail panel (state + its live comment
+  // subscription — see subscribeComments()) without triggering a re-render,
+  // so callers can batch-collapse several tasks and render once at the end.
+  function collapseTaskDetailState(id){
+    delete expandedTasks[id];
+    if(commentUnsubs[id]){ commentUnsubs[id](); delete commentUnsubs[id]; }
+    delete commentsByTaskId[id];
+  }
   // Expands/collapses one task's inline detail panel. Subscribing to its
   // comments only while open (and unsubscribing on collapse) keeps us from
   // running a live listener per task all the time — see subscribeComments().
   function toggleTaskDetail(id){
     if(expandedTasks[id]){
-      delete expandedTasks[id];
-      if(commentUnsubs[id]){ commentUnsubs[id](); delete commentUnsubs[id]; }
-      delete commentsByTaskId[id];
+      collapseTaskDetailState(id);
     }else{
       expandedTasks[id] = true;
       subscribeComments(id);
     }
     renderTree();
+  }
+  // Collapses one 案件卡 and, per user request, resets every task inside it
+  // back to collapsed too (so re-expanding the 案件 later always starts
+  // fresh) — including 未分類's synthetic "project".
+  function collapseProject(pid){
+    delete expandedProjects[pid];
+    Object.keys(expandedTasks).forEach(function(tid){
+      var t = tasksById[tid];
+      if(!t) return;
+      var belongsHere = pid === UNASSIGNED_PROJECT_ID ? !t.projectId : t.projectId === pid;
+      if(belongsHere) collapseTaskDetailState(tid);
+    });
   }
 
   function renderTaskItem(t, completion){
@@ -1861,14 +1971,16 @@
   }
 
   // ---------- add / edit ----------
-  function resetForm(){
+  function resetForm(presetProjectId){
     $('f_title').value = '';
     $('f_due').value = '';
     $('f_notes').value = '';
-    // "新增待辦" is now a single global button (no more "currently browsed
-    // project" to default into) — leave blank (未分類) unless editing an
-    // existing task, which fills this in separately in openEditDialog().
-    $('f_project').value = '';
+    // "新增待辦" is a single global button, but if a project section is
+    // currently expanded in the tree (presetProjectId — see
+    // openEditDialog()/currentOpenProjectId()), default into that one;
+    // 未分類 itself counts as "no preset" (blank).
+    setProjectCombo(presetProjectId && presetProjectId !== UNASSIGNED_PROJECT_ID ? presetProjectId : '');
+    $('projectComboList').hidden = true;
     currentPhotos = [];
     currentChecklist = [];
     currentProcureItems = [];
@@ -1919,27 +2031,6 @@
         currentProcureItems.splice(parseInt(b.dataset.idx,10), 1);
         renderProcureRow();
       });
-    });
-  }
-  function promptNewProject(){
-    var name = window.prompt('新案件名稱：');
-    if(!name || !name.trim()){ $('f_project').value = ''; return; }
-    name = name.trim();
-    var createdAt = nowIso();
-    firestore.collection('projects').add({
-      name: name, createdAt: createdAt,
-      createdByUid: currentUser.uid, createdByName: myDisplayName(), createdByEmail: currentUser.email
-    }).then(function(ref){
-      projectsById[ref.id] = {
-        id: ref.id, name: name, createdAt: createdAt,
-        createdByUid: currentUser.uid, createdByName: myDisplayName(), createdByEmail: currentUser.email
-      };
-      renderProjectOptions();
-      $('f_project').value = ref.id;
-      logActivity('create', 'project', ref.id, name);
-    }).catch(function(e){
-      alert('新增案件失敗：'+e.message);
-      $('f_project').value = '';
     });
   }
   // Type is multi-select: `types` can hold 'general' and/or 'procurement'
@@ -2031,16 +2122,16 @@
     }
   }
 
-  function openEditDialog(id){
+  function openEditDialog(id, presetProjectId){
     currentEditId = id || null;
-    resetForm();
+    resetForm(presetProjectId);
     if(id){
       var t = tasksById[id];
       $('editDialogTitle').textContent = '編輯待辦';
       $('f_title').value = t.title || '';
       $('f_due').value = t.dueDate || '';
       $('f_notes').value = t.notes || '';
-      $('f_project').value = t.projectId || '';
+      setProjectCombo(t.projectId || '');
       currentPhotos = (t.photos || []).slice();
       currentChecklist = (t.checklist || []).map(function(it){ return { id: it.id, text: it.text }; });
       currentProcureItems = procureItemsFor(t).map(function(it){
@@ -2064,7 +2155,7 @@
       title: title,
       types: currentTypes.slice(),
       type: currentTypes[0], // kept in sync for older code paths reading the single field; taskTypes() prefers `types`
-      projectId: (projectVal && projectVal !== '__new__') ? projectVal : null,
+      projectId: projectVal || null,
       dueDate: $('f_due').value || null,
       notes: $('f_notes').value.trim() || null,
       item: null, qty: null, vendor: null, // superseded by procureItems; cleared so stale legacy values don't linger
@@ -2105,9 +2196,7 @@
     var title = t ? t.title : '';
     // this task's inline detail (if open) and its live comment subscription
     // are about to become meaningless — tear them down along with it
-    delete expandedTasks[id];
-    if(commentUnsubs[id]){ commentUnsubs[id](); delete commentUnsubs[id]; }
-    delete commentsByTaskId[id];
+    collapseTaskDetailState(id);
     try{
       await firestore.collection('tasks').doc(id).delete();
       firestore.collection('completions').doc(id).delete().catch(function(){});
@@ -2167,7 +2256,7 @@
     if(eventsBound) return;
     eventsBound = true;
 
-    $('addBtn').addEventListener('click', function(){ openEditDialog(null); });
+    $('addBtn').addEventListener('click', function(){ openEditDialog(null, currentOpenProjectId()); });
     $('editDialogClose').addEventListener('click', function(){ editDialog.close(); });
     $('cancelEditBtn').addEventListener('click', function(){ editDialog.close(); });
     $('saveTaskBtn').addEventListener('click', saveTask);
@@ -2221,8 +2310,28 @@
       var inputs = $('procureRows').querySelectorAll('.pe-item');
       if(inputs.length) inputs[inputs.length-1].focus();
     });
-    $('f_project').addEventListener('change', function(){
-      if(this.value === '__new__') promptNewProject();
+    var fProjectInput = $('f_project_input');
+    fProjectInput.addEventListener('focus', function(){ renderProjectCombo(''); });
+    fProjectInput.addEventListener('input', function(){ renderProjectCombo(this.value); });
+    fProjectInput.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        var firstMatch = $('projectComboList').querySelector('.combo-option:not(.combo-new)');
+        if(firstMatch) setProjectCombo(firstMatch.dataset.id);
+        else createProjectFromCombo(this.value.trim());
+        $('projectComboList').hidden = true;
+      }else if(e.key === 'Escape'){
+        this.blur();
+      }
+    });
+    fProjectInput.addEventListener('blur', function(){
+      // mousedown on a combo option fires (and calls preventDefault) before
+      // this blur, so a real selection has already landed by the time this
+      // runs; anything left un-selected just reverts to the current pick.
+      setTimeout(function(){
+        $('projectComboList').hidden = true;
+        fProjectInput.value = comboLabelFor($('f_project').value);
+      }, 150);
     });
 
     $('statusSeg').querySelectorAll('button').forEach(function(b){
