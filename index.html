@@ -129,26 +129,27 @@
   .user-row-actions .btn[disabled]{ opacity:.4; cursor:not-allowed; }
   .btn-sm{ padding:6px 11px; font-size:12.5px; }
 
-  /* ---------- projects (case) picker ---------- */
-  .section-label{
-    font-family:"Archivo",sans-serif; font-weight:700; font-size:13px; color:var(--text-muted);
-    text-transform:uppercase; letter-spacing:.06em; margin:0 0 12px;
-  }
-  .projects-grid{
-    display:grid; grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); gap:12px;
-  }
-  .project-card{
-    display:flex; flex-direction:column; align-items:flex-start; gap:6px; text-align:left;
+  /* ---------- project tree (collapsible sections) ---------- */
+  .proj-section{
     background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-m);
-    padding:16px; cursor:pointer; box-shadow:var(--shadow-s);
+    margin-bottom:10px; box-shadow:var(--shadow-s); overflow:hidden;
   }
-  .project-card:hover{ border-color:var(--border-strong); }
-  .project-card-icon{ font-size:22px; }
-  .project-card-name{ font-weight:700; font-size:14.5px; color:var(--text); }
-  .project-card-meta{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-muted); }
-
-  .tasks-view-head{ display:flex; align-items:baseline; gap:12px; margin-bottom:16px; }
-  .tasks-view-head h2{ font-family:"Archivo",sans-serif; font-weight:800; font-size:19px; margin:0; color:var(--text); }
+  .proj-header{
+    width:100%; display:flex; align-items:center; gap:10px; padding:14px 16px;
+    background:none; border:none; text-align:left; cursor:pointer; color:var(--text);
+  }
+  .proj-header:hover{ background:var(--surface-2); }
+  .proj-caret{
+    display:inline-flex; flex-shrink:0; font-size:11px; color:var(--text-faint);
+    transition:transform .15s ease; transform:rotate(0deg);
+  }
+  .proj-header.open .proj-caret{ transform:rotate(90deg); }
+  .proj-icon{ font-size:18px; flex-shrink:0; }
+  .proj-name{ font-weight:700; font-size:14.5px; flex:1; min-width:0; }
+  .proj-meta{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-muted); flex-shrink:0; }
+  .proj-body{ padding:0 14px 14px; border-top:1px solid var(--border); }
+  .proj-body .group:first-child{ margin-top:14px; }
+  .proj-empty-hint{ padding:14px 2px 4px; font-size:13px; color:var(--text-faint); }
 
   /* ---------- checklist (sub-items) ---------- */
   .checklist{ display:flex; flex-direction:column; gap:2px; }
@@ -213,15 +214,30 @@
   .group-title.soon{ color:var(--warn); }
 
   .card-list{ display:flex; flex-direction:column; gap:8px; }
+  .task-item{ display:flex; flex-direction:column; }
   .task-row{
     display:flex; align-items:flex-start; gap:12px; background:var(--surface); border:1px solid var(--border);
     border-radius:var(--radius-m); padding:12px 14px; box-shadow:var(--shadow-s); cursor:pointer;
   }
   .task-row:hover{ border-color:var(--border-strong); }
   .task-row.done{ opacity:.62; }
+  .task-row.open{ border-radius:var(--radius-m) var(--radius-m) 0 0; border-bottom-color:transparent; }
   .task-row .stripe{ width:4px; align-self:stretch; border-radius:3px; background:transparent; margin-right:2px; flex-shrink:0; }
   .task-row.overdue .stripe{ background:var(--danger); }
   .task-row.soon .stripe{ background:var(--warn); }
+  .row-caret{
+    display:inline-flex; align-items:center; justify-content:center; width:14px; flex-shrink:0;
+    font-size:11px; color:var(--text-faint); margin-top:3px; transition:transform .15s ease;
+  }
+  .task-row.open .row-caret{ transform:rotate(90deg); }
+  .task-detail{
+    background:var(--surface); border:1px solid var(--border); border-top:none;
+    border-radius:0 0 var(--radius-m) var(--radius-m); box-shadow:var(--shadow-s);
+    padding:16px 16px 16px 42px; margin-top:-1px;
+  }
+  .task-detail-actions{
+    display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; padding-top:14px; border-top:1px solid var(--border);
+  }
 
   .check-btn{
     flex-shrink:0; width:24px; height:24px; border-radius:7px; border:2px solid var(--border-strong);
@@ -374,9 +390,17 @@
      is chrome that means nothing on paper. */
   @media print{
     body{ background:#fff; color:#000; }
-    header.top, .toolbar, #projectsView, #backToProjectsBtn, dialog, #ctxMenu, .check-btn{ display:none !important; }
+    header.top, .toolbar, dialog, #ctxMenu, .check-btn{ display:none !important; }
     #app{ padding:0; max-width:none; }
-    .task-row{ border:1px solid #999; break-inside:avoid; background:#fff; }
+    /* Print/PDF shows every 案件 section and every task row regardless of
+       collapse state — but not the inline task detail panel (checklist,
+       photos, comments, buttons), same as the old design only ever
+       printed the row list, never the popup detail. */
+    .proj-body[hidden]{ display:block !important; }
+    .task-detail{ display:none !important; }
+    .proj-caret, .row-caret{ display:none !important; }
+    .proj-header{ cursor:default; }
+    .task-row{ border:1px solid #999; break-inside:avoid; background:#fff; cursor:default; }
     .chip{ border:1px solid #999; background:#fff !important; color:#000 !important; }
     .stripe{ display:none; }
   }
@@ -427,43 +451,29 @@
 
   <div id="bannerZone"></div>
 
-  <!-- Project picker (home screen) -->
-  <div id="projectsView">
-    <p class="section-label">選擇案件</p>
-    <div id="projectsGrid" class="projects-grid">
-      <div class="loading-state">載入中…</div>
+  <!-- Global toolbar: search/filters/export act across every 案件 at once -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="searchInput" type="text" placeholder="搜尋標題、品項、廠商…（會自動展開符合的案件）" />
     </div>
+    <div class="seg" id="statusSeg">
+      <button data-val="pending" class="active">待處理</button>
+      <button data-val="done">已完成</button>
+      <button data-val="all">全部</button>
+    </div>
+    <select id="typeFilter" class="type-filter">
+      <option value="all">全部類型</option>
+      <option value="general">一般任務</option>
+      <option value="procurement">物料採購</option>
+    </select>
+    <button class="btn btn-sm" id="exportExcelBtn" title="匯出目前清單為 Excel">📤 Excel</button>
+    <button class="btn btn-sm" id="exportPrintBtn" title="列印或另存 PDF">🖨 列印/PDF</button>
   </div>
 
-  <!-- Tasks list, scoped to whichever project was picked -->
-  <div id="tasksView" hidden>
-    <div class="tasks-view-head">
-      <button class="btn btn-sm" id="backToProjectsBtn">← 案件列表</button>
-      <h2 id="tasksViewTitle"></h2>
-    </div>
-
-    <div class="toolbar">
-      <div class="search-wrap">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input id="searchInput" type="text" placeholder="搜尋標題、品項、廠商…" />
-      </div>
-      <div class="seg" id="statusSeg">
-        <button data-val="pending" class="active">待處理</button>
-        <button data-val="done">已完成</button>
-        <button data-val="all">全部</button>
-      </div>
-      <select id="typeFilter" class="type-filter">
-        <option value="all">全部類型</option>
-        <option value="general">一般任務</option>
-        <option value="procurement">物料採購</option>
-      </select>
-      <button class="btn btn-sm" id="exportExcelBtn" title="匯出目前清單為 Excel">📤 Excel</button>
-      <button class="btn btn-sm" id="exportPrintBtn" title="列印或另存 PDF">🖨 列印/PDF</button>
-    </div>
-
-    <div id="listZone">
-      <div class="loading-state">載入中…</div>
-    </div>
+  <!-- Nested collapsible tree: 案件 → 待辦事項，全部預設收合，點擊才展開 -->
+  <div id="treeZone">
+    <div class="loading-state">載入中…</div>
   </div>
 </div>
 
@@ -543,17 +553,6 @@
   </div>
 </dialog>
 
-<!-- Detail dialog -->
-<dialog id="detailDialog">
-  <div class="dlg-head">
-    <h2 id="detailTitle">待辦詳情</h2>
-    <button class="dlg-close" id="detailClose" aria-label="關閉">✕</button>
-  </div>
-  <div class="dlg-body">
-    <div class="detail-grid" id="detailBody"></div>
-  </div>
-  <div class="dlg-foot" id="detailFoot"></div>
-</dialog>
 
 <!-- Complete-confirm dialog -->
 <dialog id="completeDialog">
@@ -779,11 +778,15 @@
   var isEditor = false; // isAdmin, or an approved account granted "新增/編輯" by an admin
   var currentUser = null;
   var ownUserDoc = null; // our own users/{uid} doc — holds customName, allowed, canEdit
-  var tasksById = {}, completionsById = {}, usersById = {}, projectsById = {}, commentsById = {};
-  var lastFilteredTasks = []; // whatever render() most recently drew — exportExcel()/exportPrint() reuse it as-is
+  var tasksById = {}, completionsById = {}, usersById = {}, projectsById = {};
+  var lastFilteredTasks = []; // whatever renderTree() most recently drew across ALL 案件 — exportExcel()/exportPrint() reuse it as-is
   var filters = { status:'pending', type:'all', q:'' };
-  var currentView = 'projects'; // 'projects' | 'tasks'
-  var currentProjectId = null; // 'all' | UNASSIGNED_PROJECT_ID | a real projects/{id}
+  // Nested tree view: every 案件 section and every task row starts
+  // collapsed; these two maps (id -> true) are the only source of truth
+  // for what's currently open, populated purely by user clicks (plus the
+  // auto-expand-while-filtering behavior in renderTree()).
+  var expandedProjects = {};
+  var expandedTasks = {};
   var currentEditId = null;
   var currentPhotos = [];
   var currentChecklist = [];
@@ -792,8 +795,12 @@
   var pendingCompleteTaskId = null;
   var pendingMoveTaskId = null;
   var pendingDuplicateTaskId = null;
-  var currentDetailTaskId = null;
-  var unsubTasks = null, unsubCompletions = null, unsubUsers = null, unsubOwnUser = null, unsubProjects = null, unsubComments = null;
+  // Comments are only live-subscribed for tasks whose inline detail is
+  // currently expanded (multiple can be open at once now, unlike the old
+  // one-dialog-at-a-time design) — keyed by taskId.
+  var commentsByTaskId = {};
+  var commentUnsubs = {};
+  var unsubTasks = null, unsubCompletions = null, unsubUsers = null, unsubOwnUser = null, unsubProjects = null;
   var dataSubscribed = false, usersSubscribed = false, projectsSubscribed = false;
 
   var MAX_PHOTOS = 5;
@@ -801,10 +808,8 @@
 
   // ---------- dom refs ----------
   var $ = function(id){ return document.getElementById(id); };
-  var listZone = $('listZone');
   var bannerZone = $('bannerZone');
   var editDialog = $('editDialog');
-  var detailDialog = $('detailDialog');
   var completeDialog = $('completeDialog');
   var moveDialog = $('moveDialog');
   var duplicateDialog = $('duplicateDialog');
@@ -855,7 +860,9 @@
     if(!user){
       currentUser = null; isAdmin = false; isApproved = false; isEditor = false;
       dataSubscribed = false; usersSubscribed = false; projectsSubscribed = false;
-      currentView = 'projects'; currentProjectId = null;
+      expandedProjects = {}; expandedTasks = {};
+      Object.keys(commentUnsubs).forEach(function(tid){ commentUnsubs[tid](); });
+      commentUnsubs = {}; commentsByTaskId = {};
       if(unsubTasks){ unsubTasks(); unsubTasks=null; }
       if(unsubCompletions){ unsubCompletions(); unsubCompletions=null; }
       if(unsubUsers){ unsubUsers(); unsubUsers=null; }
@@ -920,7 +927,7 @@
       renderUserChip();
       renderAdminUI();
       if(!dataSubscribed){ dataSubscribed = true; subscribe(); }
-      if(!projectsSubscribed){ projectsSubscribed = true; subscribeProjects(); showProjectsView(); }
+      if(!projectsSubscribed){ projectsSubscribed = true; subscribeProjects(); }
       if(isAdmin && !usersSubscribed){ usersSubscribed = true; subscribeUsers(); }
       bindEventsOnce();
     }else{
@@ -1153,14 +1160,14 @@
       tasksById = {};
       snap.forEach(function(d){ tasksById[d.id] = Object.assign({id:d.id}, d.data()); });
       clearBanner();
-      renderCurrentView();
+      renderTree();
     }, function(err){
       showBanner('待辦事項載入失敗：'+err.message);
     });
     unsubCompletions = firestore.collection('completions').limit(500).onSnapshot(function(snap){
       completionsById = {};
       snap.forEach(function(d){ completionsById[d.id] = d.data(); });
-      renderCurrentView();
+      renderTree();
     }, function(err){
       showBanner('完成狀態載入失敗：'+err.message);
     });
@@ -1172,7 +1179,7 @@
       projectsById = {};
       snap.forEach(function(d){ projectsById[d.id] = Object.assign({id:d.id}, d.data()); });
       renderProjectOptions();
-      renderCurrentView();
+      renderTree();
     }, function(err){
       showBanner('案件清單載入失敗：'+err.message);
     });
@@ -1198,25 +1205,6 @@
     editSel.innerHTML = html;
     if([].slice.call(editSel.options).some(function(o){ return o.value === cur; })) editSel.value = cur;
   }
-  function renderCurrentView(){
-    if(currentView === 'projects') renderProjectsGrid();
-    else render();
-  }
-  function showProjectsView(){
-    currentView = 'projects';
-    currentProjectId = null;
-    $('projectsView').hidden = false;
-    $('tasksView').hidden = true;
-    renderProjectsGrid();
-  }
-  function showTasksView(projectId){
-    currentView = 'tasks';
-    currentProjectId = projectId;
-    $('projectsView').hidden = true;
-    $('tasksView').hidden = false;
-    $('tasksViewTitle').textContent = projectTitleFor(projectId);
-    render();
-  }
   function projectTaskCounts(pid){
     var tasks = Object.keys(tasksById).map(function(id){ return tasksById[id]; })
       .filter(function(t){
@@ -1231,88 +1219,38 @@
     });
     return { total: tasks.length, pending: pending, overdue: overdue };
   }
-  function renderProjectsGrid(){
-    var grid = $('projectsGrid');
-    if(!grid) return;
-    function cardHtml(id, name, icon, counts){
-      return '<button type="button" class="project-card" data-pid="'+id+'">'+
-        '<div class="project-card-icon">'+icon+'</div>'+
-        '<div class="project-card-name">'+esc(name)+'</div>'+
-        '<div class="project-card-meta"><span class="num">'+counts.pending+'</span> 筆待處理'+
-          (counts.overdue>0 ? '<span class="chip due-overdue">逾期 <span class="num">'+counts.overdue+'</span></span>' : '')+
-        '</div>'+
-      '</button>';
-    }
-    var list = sortedProjects();
-    var hasUnassigned = Object.keys(tasksById).some(function(id){ return !tasksById[id].projectId; });
-
-    var html = cardHtml('all', '全部待處理項目', '📋', projectTaskCounts('all'));
-    list.forEach(function(p){ html += cardHtml(p.id, p.name, '📁', projectTaskCounts(p.id)); });
-    if(hasUnassigned) html += cardHtml(UNASSIGNED_PROJECT_ID, '未分類', '📂', projectTaskCounts(UNASSIGNED_PROJECT_ID));
-
-    if(list.length === 0 && !hasUnassigned){
-      grid.innerHTML = '<div class="empty-state">還沒有任何案件'+(isAdmin ? '，點右上角「案件管理」新增一個。' : '。')+'</div>';
-      return;
-    }
-    grid.innerHTML = html;
-    grid.querySelectorAll('.project-card').forEach(function(btn){
-      btn.addEventListener('click', function(){ showTasksView(btn.dataset.pid); });
-      var pid = btn.dataset.pid;
-      if(pid === 'all' || pid === UNASSIGNED_PROJECT_ID) return; // synthetic cards, nothing to edit/delete
-      btn.addEventListener('contextmenu', function(e){
-        e.preventDefault();
-        var p = projectsById[pid];
-        if(!p) return;
-        var items = [];
-        if(isAdmin || isEditor) items.push({ label: '✎ 重新命名', onClick: function(){ renameProject(pid); } });
-        if(canDeleteProject(p)) items.push({ label: '🗑 刪除', danger: true, onClick: function(){ deleteProjectFlow(pid); } });
-        showCtxMenu(e.clientX, e.clientY, items);
-      });
-    });
-  }
-
-  // ---------- render list ----------
-  function render(){
-    var all = Object.keys(tasksById).map(function(id){ return tasksById[id]; });
+  // ---------- render tree (案件 sections, each holding collapsible task rows) ----------
+  var STATUS_GROUPS = [
+    {key:'overdue', label:'已逾期', cls:'overdue'},
+    {key:'soon', label:'即將到期（3天內）', cls:'soon'},
+    {key:'upcoming', label:'待處理', cls:''},
+    {key:'undated', label:'未排定日期', cls:''},
+    {key:'done', label:'已完成', cls:''}
+  ];
+  function taskMatchesFilters(t){
+    if(filters.type !== 'all' && !taskHasType(t, filters.type)) return false;
+    var completion = completionsById[t.id];
+    var status = taskStatus(t, completion);
+    if(filters.status === 'pending' && status === 'done') return false;
+    if(filters.status === 'done' && status !== 'done') return false;
     var q = filters.q.trim().toLowerCase();
-    var inScope = all.filter(function(t){
-      if(currentProjectId && currentProjectId !== 'all'){
-        return (t.projectId || UNASSIGNED_PROJECT_ID) === currentProjectId;
-      }
-      return true;
-    });
-
-    var filtered = inScope.filter(function(t){
-      if(filters.type !== 'all' && !taskHasType(t, filters.type)) return false;
-      var completion = completionsById[t.id];
-      var status = taskStatus(t, completion);
-      if(filters.status === 'pending' && status === 'done') return false;
-      if(filters.status === 'done' && status !== 'done') return false;
-      if(q){
-        var procureNames = procureItemsFor(t).map(function(it){ return [it.item, it.vendor].join(' '); });
-        var hay = [t.title, t.notes].concat(procureNames).filter(Boolean).join(' ').toLowerCase();
-        if(hay.indexOf(q) === -1) return false;
-      }
-      return true;
-    });
-    lastFilteredTasks = filtered;
-
-    if(filtered.length === 0){
-      listZone.innerHTML = '<div class="empty-state">'+
-        (inScope.length===0
-          ? '「'+esc(projectTitleFor(currentProjectId))+'」目前還沒有待辦事項' + ((isAdmin || isEditor) ? '，點右上角「新增待辦」開始建立。' : '。')
-          : '沒有符合條件的項目') +
-        '</div>';
-      return;
+    if(q){
+      var procureNames = procureItemsFor(t).map(function(it){ return [it.item, it.vendor].join(' '); });
+      var hay = [t.title, t.notes].concat(procureNames).filter(Boolean).join(' ').toLowerCase();
+      if(hay.indexOf(q) === -1) return false;
     }
-
+    return true;
+  }
+  function byDue(a,b){ return (a.dueDate||'9999').localeCompare(b.dueDate||'9999'); }
+  // Builds the grouped (已逾期/即將到期/待處理/未排定日期/已完成) task-row
+  // HTML for one 案件's already-filtered task list, same bucketing the old
+  // single-project render() used. Returns null when nothing matches so the
+  // caller can show an empty-state hint instead.
+  function projectBodyHtml(tasksForProject){
+    var filtered = tasksForProject.filter(taskMatchesFilters);
+    if(filtered.length === 0) return null;
     var buckets = { overdue:[], soon:[], upcoming:[], undated:[], done:[] };
-    filtered.forEach(function(t){
-      var c = completionsById[t.id];
-      buckets[taskStatus(t,c)].push(t);
-    });
-
-    function byDue(a,b){ return (a.dueDate||'9999').localeCompare(b.dueDate||'9999'); }
+    filtered.forEach(function(t){ buckets[taskStatus(t, completionsById[t.id])].push(t); });
     buckets.overdue.sort(byDue);
     buckets.soon.sort(byDue);
     buckets.upcoming.sort(byDue);
@@ -1322,30 +1260,109 @@
       var cb = (completionsById[b.id]||{}).completedAt||'';
       return cb.localeCompare(ca);
     });
-
-    var groups = [
-      {key:'overdue', label:'已逾期', cls:'overdue', items:buckets.overdue},
-      {key:'soon', label:'即將到期（3天內）', cls:'soon', items:buckets.soon},
-      {key:'upcoming', label:'待處理', cls:'', items:buckets.upcoming},
-      {key:'undated', label:'未排定日期', cls:'', items:buckets.undated},
-      {key:'done', label:'已完成', cls:'', items:buckets.done}
-    ];
-
     var html = '';
-    groups.forEach(function(g){
-      if(g.items.length === 0) return;
+    STATUS_GROUPS.forEach(function(g){
+      var items = buckets[g.key];
+      if(!items.length) return;
       html += '<div class="group">';
-      html += '<p class="group-title '+g.cls+'">'+g.label+' <span class="count num">('+g.items.length+')</span></p>';
+      html += '<p class="group-title '+g.cls+'">'+g.label+' <span class="count num">('+items.length+')</span></p>';
       html += '<div class="card-list">';
-      g.items.forEach(function(t){ html += renderRow(t, completionsById[t.id]); });
+      items.forEach(function(t){ html += renderTaskItem(t, completionsById[t.id]); });
       html += '</div></div>';
     });
-    listZone.innerHTML = html;
+    return { html: html, count: filtered.length };
+  }
+  function projectSectionHtml(pid, name, icon, tasksForProject, hasContextMenu){
+    var body = projectBodyHtml(tasksForProject);
+    var matchCount = body ? body.count : 0;
+    var filtersActive = !!filters.q.trim() || filters.status !== 'pending' || filters.type !== 'all';
+    var open = !!expandedProjects[pid] || (filtersActive && matchCount > 0);
+    var counts = projectTaskCounts(pid);
+    var metaHtml = '<span class="num">'+counts.pending+'</span> 筆待處理' +
+      (counts.overdue > 0 ? '<span class="chip due-overdue">逾期 <span class="num">'+counts.overdue+'</span></span>' : '');
+    var bodyInner = body ? body.html
+      : '<div class="proj-empty-hint">'+(filtersActive ? '沒有符合條件的項目' : ('目前還沒有待辦事項'+((isAdmin||isEditor)?'，點右上角「新增待辦」開始建立。':'。')))+'</div>';
+    return '<div class="proj-section" data-pid="'+pid+'">'+
+      '<button type="button" class="proj-header'+(open?' open':'')+(hasContextMenu?'':' no-ctx')+'" data-pid="'+pid+'">'+
+        '<span class="proj-caret">▶</span>'+
+        '<span class="proj-icon">'+icon+'</span>'+
+        '<span class="proj-name">'+esc(name)+'</span>'+
+        '<span class="proj-meta">'+metaHtml+'</span>'+
+      '</button>'+
+      '<div class="proj-body"'+(open?'':' hidden')+'>'+bodyInner+'</div>'+
+    '</div>';
+  }
+  function renderTree(){
+    var zone = $('treeZone');
+    if(!zone) return;
+    var savedScroll = window.scrollY;
+    var drafts = captureCommentDrafts(zone);
 
-    listZone.querySelectorAll('.task-row').forEach(function(row){
+    var all = Object.keys(tasksById).map(function(id){ return tasksById[id]; });
+    lastFilteredTasks = all.filter(taskMatchesFilters);
+
+    var list = sortedProjects();
+    var unassignedTasks = all.filter(function(t){ return !t.projectId; });
+
+    var html = '';
+    list.forEach(function(p){
+      var tasksForProject = all.filter(function(t){ return t.projectId === p.id; });
+      html += projectSectionHtml(p.id, p.name, '📁', tasksForProject, true);
+    });
+    if(unassignedTasks.length){
+      html += projectSectionHtml(UNASSIGNED_PROJECT_ID, '未分類', '📂', unassignedTasks, false);
+    }
+
+    if(!html){
+      zone.innerHTML = '<div class="empty-state">還沒有任何案件'+(isAdmin ? '，點右上角「案件管理」新增一個。' : '。')+'</div>';
+    }else{
+      zone.innerHTML = html;
+    }
+
+    wireTreeEvents(zone);
+    restoreCommentDrafts(zone, drafts);
+    window.scrollTo(0, savedScroll);
+  }
+  // Preserves any not-yet-sent comment text across a full tree rebuild
+  // (every Firestore snapshot re-renders the whole tree, which would
+  // otherwise wipe out whatever someone was mid-typing in an unrelated
+  // task's comment box).
+  function captureCommentDrafts(zone){
+    var drafts = {};
+    zone.querySelectorAll('.task-detail .comment-input').forEach(function(inp){
+      if(inp.value) drafts[inp.closest('.task-detail').dataset.id] = inp.value;
+    });
+    return drafts;
+  }
+  function restoreCommentDrafts(zone, drafts){
+    Object.keys(drafts).forEach(function(id){
+      var inp = zone.querySelector('.task-detail[data-id="'+id+'"] .comment-input');
+      if(inp) inp.value = drafts[id];
+    });
+  }
+  function wireTreeEvents(zone){
+    zone.querySelectorAll('.proj-header').forEach(function(btn){
+      var pid = btn.dataset.pid;
+      btn.addEventListener('click', function(){
+        expandedProjects[pid] = !btn.classList.contains('open');
+        renderTree();
+      });
+      if(!btn.classList.contains('no-ctx')){
+        btn.addEventListener('contextmenu', function(e){
+          e.preventDefault();
+          var p = projectsById[pid];
+          if(!p) return;
+          var items = [];
+          if(isAdmin || isEditor) items.push({ label: '✎ 重新命名', onClick: function(){ renameProject(pid); } });
+          if(canDeleteProject(p)) items.push({ label: '🗑 刪除', danger: true, onClick: function(){ deleteProjectFlow(pid); } });
+          showCtxMenu(e.clientX, e.clientY, items);
+        });
+      }
+    });
+    zone.querySelectorAll('.task-row').forEach(function(row){
       row.addEventListener('click', function(e){
         if(e.target.closest('.check-btn')) return;
-        openDetail(row.dataset.id);
+        toggleTaskDetail(row.dataset.id);
       });
       row.addEventListener('contextmenu', function(e){
         e.preventDefault();
@@ -1364,7 +1381,7 @@
         showCtxMenu(e.clientX, e.clientY, items);
       });
     });
-    listZone.querySelectorAll('.check-btn').forEach(function(btn){
+    zone.querySelectorAll('.check-btn').forEach(function(btn){
       btn.addEventListener('click', function(e){
         e.stopPropagation();
         var id = btn.closest('.task-row').dataset.id;
@@ -1376,9 +1393,28 @@
         }
       });
     });
+    zone.querySelectorAll('.task-detail').forEach(function(det){
+      wireTaskDetail(det, det.dataset.id);
+    });
+  }
+  // Expands/collapses one task's inline detail panel. Subscribing to its
+  // comments only while open (and unsubscribing on collapse) keeps us from
+  // running a live listener per task all the time — see subscribeComments().
+  function toggleTaskDetail(id){
+    if(expandedTasks[id]){
+      delete expandedTasks[id];
+      if(commentUnsubs[id]){ commentUnsubs[id](); delete commentUnsubs[id]; }
+      delete commentsByTaskId[id];
+    }else{
+      expandedTasks[id] = true;
+      subscribeComments(id);
+    }
+    renderTree();
   }
 
-  function renderRow(t, completion){
+  function renderTaskItem(t, completion){
+    var id = t.id;
+    var open = !!expandedTasks[id];
     var status = taskStatus(t, completion);
     var done = status === 'done';
     var progress = subItemProgress(t, completion);
@@ -1388,8 +1424,6 @@
         ? '<span class="chip type-procurement">🛒 物料採購</span>'
         : '<span class="chip type-general">📋 一般任務</span>';
     }).join('');
-    var projChip = (currentProjectId === 'all')
-      ? '<span class="chip due-normal">📁 '+esc(projectTitleFor(t.projectId || UNASSIGNED_PROJECT_ID))+'</span>' : '';
     var dueChip = '';
     if(t.dueDate){
       var cls = status==='overdue' ? 'due-overdue' : (status==='soon' ? 'due-soon' : 'due-normal');
@@ -1414,30 +1448,30 @@
         (done ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>' : '')+
       '</button>';
 
-    return '<div class="task-row '+(done?'done ':'')+status+'" data-id="'+t.id+'">'+
+    var rowHtml = '<div class="task-row '+(done?'done ':'')+status+(open?' open':'')+'" data-id="'+id+'">'+
       '<div class="stripe"></div>'+
+      '<span class="row-caret">▶</span>'+
       checkBtn+
       '<div class="row-body">'+
         '<div class="row-top"><span class="row-title">'+esc(t.title)+'</span></div>'+
         subline+
-        '<div class="row-meta">'+projChip+typeChip+dueChip+doneChip+checklistChip+procureChip+photoBadge+'</div>'+
+        '<div class="row-meta">'+typeChip+dueChip+doneChip+checklistChip+procureChip+photoBadge+'</div>'+
       '</div>'+
     '</div>';
+
+    var detailHtml = open ? '<div class="task-detail" data-id="'+id+'">'+taskDetailHtml(t, completion)+'</div>' : '';
+
+    return '<div class="task-item" data-id="'+id+'">'+rowHtml+detailHtml+'</div>';
   }
 
-  // ---------- detail dialog ----------
-  function openDetail(id){
-    var t = tasksById[id];
-    if(!t) return;
-    currentDetailTaskId = id;
-    var c = completionsById[id];
+  // ---------- inline task detail (expands directly under its row) ----------
+  function taskDetailHtml(t, c){
+    var id = t.id;
     var status = taskStatus(t, c);
-    $('detailTitle').textContent = t.title;
-
     var progress = subItemProgress(t, c);
     var procureItems = procureItemsFor(t);
 
-    var html = '';
+    var html = '<div class="detail-grid">';
     html += '<div><div class="detail-row-label">案件</div>' +
       '<span class="chip due-normal">📁 '+esc(projectTitleFor(t.projectId || UNASSIGNED_PROJECT_ID))+'</span>' +
       '</div>';
@@ -1502,81 +1536,79 @@
     html += '<div class="detail-foot-meta">建立於 '+fmtDateTime(t.createdAt)+(t.updatedAt && t.updatedAt!==t.createdAt ? ' · 更新於 '+fmtDateTime(t.updatedAt) : '')+'</div>';
 
     html += '<div><div class="detail-row-label">留言</div>' +
-      '<div class="comments-list" id="commentsList"><div class="loading-state">載入中…</div></div>' +
-      '<div class="comment-input-row"><input id="newCommentInput" type="text" placeholder="留言…" /><button class="btn btn-sm primary" id="sendCommentBtn">送出</button></div>' +
+      '<div class="comments-list">'+commentsListHtml(id)+'</div>' +
+      '<div class="comment-input-row"><input type="text" class="comment-input" placeholder="留言…" /><button class="btn btn-sm primary comment-send-btn">送出</button></div>' +
     '</div>';
+    html += '</div>'; // .detail-grid
 
-    $('detailBody').innerHTML = html;
-    $('detailBody').querySelectorAll('.gallery img').forEach(function(img){
+    var footHtml = '<div class="task-detail-actions">';
+    if(!progress.hasAny){
+      if(!(c && c.completed)){
+        footHtml += '<button class="btn primary" data-act="complete">標記完成</button>';
+      }else if(isAdmin){
+        footHtml += '<button class="btn" data-act="unmark">取消完成</button>';
+      }
+    }
+    if(isAdmin || isEditor){
+      footHtml += '<button class="btn" data-act="edit">編輯</button>';
+      footHtml += '<button class="btn" data-act="move">搬移案件</button>';
+      footHtml += '<button class="btn" data-act="duplicate">複製到其他案件</button>';
+    }
+    if(canDeleteTask(t)){
+      footHtml += '<button class="btn danger" data-act="delete">刪除</button>';
+    }
+    footHtml += '</div>';
+
+    return html + footHtml;
+  }
+  function wireTaskDetail(det, id){
+    det.querySelectorAll('.gallery img').forEach(function(img){
       img.addEventListener('click', function(){
         $('lightboxImg').src = img.src;
         lightbox.showModal();
       });
     });
-    $('detailBody').querySelectorAll('.checklist-item input[data-item-id]').forEach(function(cb){
+    det.querySelectorAll('.checklist-item input[data-item-id]').forEach(function(cb){
       cb.addEventListener('change', function(){
         var val = cb.checked;
         cb.disabled = true;
-        toggleChecklistItem(id, cb.dataset.itemId, val).then(function(){
-          openDetail(id); // re-render with the fresh state (who/when, progress count)
-        }).catch(function(e){
+        toggleChecklistItem(id, cb.dataset.itemId, val).catch(function(e){
           alert('操作失敗：'+e.message);
           cb.disabled = false;
           cb.checked = !val;
         });
       });
     });
-    $('detailBody').querySelectorAll('.checklist-item input[data-procure-id]').forEach(function(cb){
+    det.querySelectorAll('.checklist-item input[data-procure-id]').forEach(function(cb){
       cb.addEventListener('change', function(){
         var val = cb.checked;
         cb.disabled = true;
-        toggleProcureItem(id, cb.dataset.procureId, val).then(function(){
-          openDetail(id);
-        }).catch(function(e){
+        toggleProcureItem(id, cb.dataset.procureId, val).catch(function(e){
           alert('操作失敗：'+e.message);
           cb.disabled = false;
           cb.checked = !val;
         });
       });
     });
-    subscribeComments(id);
-    $('sendCommentBtn').addEventListener('click', function(){ postComment(id); });
-    $('newCommentInput').addEventListener('keydown', function(e){
-      if(e.key === 'Enter'){ e.preventDefault(); postComment(id); }
+    var input = det.querySelector('.comment-input');
+    var sendBtn = det.querySelector('.comment-send-btn');
+    if(sendBtn) sendBtn.addEventListener('click', function(){ postComment(id, input); });
+    if(input) input.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){ e.preventDefault(); postComment(id, input); }
     });
 
-    var footHtml = '';
-    if(!progress.hasAny){
-      if(!(c && c.completed)){
-        footHtml += '<button class="btn primary" id="detailCompleteBtn">標記完成</button>';
-      }else if(isAdmin){
-        footHtml += '<button class="btn" id="detailUnmarkBtn">取消完成</button>';
-      }
-    }
-    if(isAdmin || isEditor){
-      footHtml += '<button class="btn" id="detailEditBtn">編輯</button>';
-      footHtml += '<button class="btn" id="detailMoveBtn">搬移案件</button>';
-      footHtml += '<button class="btn" id="detailDuplicateBtn">複製到其他案件</button>';
-    }
-    if(canDeleteTask(t)){
-      footHtml += '<button class="btn danger" id="detailDeleteBtn">刪除</button>';
-    }
-    $('detailFoot').innerHTML = footHtml;
-
-    var completeBtn = $('detailCompleteBtn');
-    if(completeBtn) completeBtn.addEventListener('click', function(){ detailDialog.close(); openCompleteDialog(id); });
-    var unmarkBtn = $('detailUnmarkBtn');
-    if(unmarkBtn) unmarkBtn.addEventListener('click', function(){ unmarkComplete(id); detailDialog.close(); });
-    var editBtn = $('detailEditBtn');
-    if(editBtn) editBtn.addEventListener('click', function(){ detailDialog.close(); openEditDialog(id); });
-    var moveBtn = $('detailMoveBtn');
-    if(moveBtn) moveBtn.addEventListener('click', function(){ detailDialog.close(); openMoveDialog(id); });
-    var duplicateBtn = $('detailDuplicateBtn');
-    if(duplicateBtn) duplicateBtn.addEventListener('click', function(){ detailDialog.close(); openDuplicateDialog(id); });
-    var delBtn = $('detailDeleteBtn');
-    if(delBtn) delBtn.addEventListener('click', function(){ deleteTask(id); detailDialog.close(); });
-
-    if(!detailDialog.open) detailDialog.showModal();
+    var completeBtn = det.querySelector('[data-act="complete"]');
+    if(completeBtn) completeBtn.addEventListener('click', function(){ openCompleteDialog(id); });
+    var unmarkBtn = det.querySelector('[data-act="unmark"]');
+    if(unmarkBtn) unmarkBtn.addEventListener('click', function(){ unmarkComplete(id); });
+    var editBtn = det.querySelector('[data-act="edit"]');
+    if(editBtn) editBtn.addEventListener('click', function(){ openEditDialog(id); });
+    var moveBtn = det.querySelector('[data-act="move"]');
+    if(moveBtn) moveBtn.addEventListener('click', function(){ openMoveDialog(id); });
+    var duplicateBtn = det.querySelector('[data-act="duplicate"]');
+    if(duplicateBtn) duplicateBtn.addEventListener('click', function(){ openDuplicateDialog(id); });
+    var delBtn = det.querySelector('[data-act="delete"]');
+    if(delBtn) delBtn.addEventListener('click', function(){ deleteTask(id); });
   }
 
   // ---------- complete flow ----------
@@ -1672,24 +1704,23 @@
   // Kept separate from 備註: 備註 is a single field that gets overwritten
   // on every edit, while comments accumulate — multiple people can post
   // progress updates without erasing each other's notes. Only subscribed
-  // while its task's detail dialog is open (unsubscribed on close), unlike
-  // tasks/completions/projects which stay subscribed for the whole session
-  // — comment volume isn't something we want to pull for every task up front.
+  // while a task's inline detail is expanded (unsubscribed on collapse),
+  // unlike tasks/completions/projects which stay subscribed for the whole
+  // session — comment volume isn't something we want to pull for every
+  // task up front. Multiple tasks can be expanded at once now, so this is
+  // a per-taskId map (commentsByTaskId/commentUnsubs) rather than one
+  // global slot.
   function canDeleteComment(cm){
     return isAdmin || (!!currentUser && cm.authorUid === currentUser.uid);
   }
-  function renderComments(taskId){
-    var list = $('commentsList');
-    if(!list) return; // detail dialog moved on to a different task/closed
-    var rows = Object.keys(commentsById)
-      .map(function(id){ return Object.assign({id:id}, commentsById[id]); })
-      .filter(function(cm){ return cm.taskId === taskId; })
+  function commentsListHtml(taskId){
+    var map = commentsByTaskId[taskId];
+    if(!map) return '<div class="loading-state">載入中…</div>';
+    var rows = Object.keys(map)
+      .map(function(id){ return Object.assign({id:id}, map[id]); })
       .sort(function(a,b){ return (a.createdAt||'').localeCompare(b.createdAt||''); });
-    if(rows.length === 0){
-      list.innerHTML = '<div class="hint">還沒有留言</div>';
-      return;
-    }
-    list.innerHTML = rows.map(function(cm){
+    if(rows.length === 0) return '<div class="hint">還沒有留言</div>';
+    return rows.map(function(cm){
       return '<div class="comment-row">'+
         '<div class="comment-row-head">'+
           '<span class="comment-row-author">'+esc(cm.authorName||cm.authorEmail||'')+'</span>'+
@@ -1699,6 +1730,15 @@
         '<div class="comment-row-text">'+esc(cm.text)+'</div>'+
       '</div>';
     }).join('');
+  }
+  // Re-renders just one task's comments list in place (without rebuilding
+  // the whole tree) so live updates don't disturb anything else on screen.
+  function renderCommentsInline(taskId){
+    var det = document.querySelector('.task-detail[data-id="'+taskId+'"]');
+    if(!det) return; // that task's detail isn't on screen any more
+    var list = det.querySelector('.comments-list');
+    if(!list) return;
+    list.innerHTML = commentsListHtml(taskId);
     list.querySelectorAll('.comment-del-btn').forEach(function(btn){
       btn.addEventListener('click', function(){
         if(!confirm('確定要刪除這則留言嗎？')) return;
@@ -1709,23 +1749,22 @@
     });
   }
   function subscribeComments(taskId){
-    if(unsubComments){ unsubComments(); unsubComments = null; }
-    commentsById = {};
-    unsubComments = firestore.collection('comments').where('taskId', '==', taskId).onSnapshot(function(snap){
-      commentsById = {};
-      snap.forEach(function(d){ commentsById[d.id] = d.data(); });
-      if(currentDetailTaskId === taskId) renderComments(taskId);
+    if(commentUnsubs[taskId]) return; // already subscribed
+    commentUnsubs[taskId] = firestore.collection('comments').where('taskId', '==', taskId).onSnapshot(function(snap){
+      var map = {};
+      snap.forEach(function(d){ map[d.id] = d.data(); });
+      commentsByTaskId[taskId] = map;
+      renderCommentsInline(taskId);
     }, function(err){
-      var list = $('commentsList');
+      var det = document.querySelector('.task-detail[data-id="'+taskId+'"]');
+      var list = det && det.querySelector('.comments-list');
       if(list) list.innerHTML = '<div class="hint warn">留言載入失敗：'+esc(err.message)+'</div>';
     });
   }
-  function postComment(taskId){
-    var input = $('newCommentInput');
-    var text = input.value.trim();
+  function postComment(taskId, input){
+    var text = (input.value || '').trim();
     if(!text) return;
-    var btn = $('sendCommentBtn');
-    btn.disabled = true;
+    input.disabled = true;
     firestore.collection('comments').add({
       taskId: taskId, text: text,
       authorUid: currentUser.uid, authorName: myDisplayName(), authorEmail: currentUser.email,
@@ -1734,7 +1773,7 @@
       input.value = '';
     }).catch(function(e){
       alert('留言失敗：'+e.message);
-    }).finally(function(){ btn.disabled = false; });
+    }).finally(function(){ input.disabled = false; });
   }
 
   // ---------- move to another project ----------
@@ -1780,11 +1819,9 @@
     var html = '<option value="">未分類</option>';
     sortedProjects().forEach(function(p){ html += '<option value="'+p.id+'">'+esc(p.name)+'</option>'; });
     sel.innerHTML = html;
-    // default to the project we're currently browsing, if any real
-    // project is in view — that's almost always the destination the
-    // user actually wants (a same-shaped checklist for a different site)
-    sel.value = (currentProjectId && currentProjectId !== 'all' && currentProjectId !== UNASSIGNED_PROJECT_ID)
-      ? currentProjectId : (t.projectId || '');
+    // default to the task's own project — the dropdown makes it obvious
+    // this needs changing to actually duplicate somewhere else
+    sel.value = t.projectId || '';
     duplicateDialog.showModal();
   }
   async function confirmDuplicate(){
@@ -1828,10 +1865,10 @@
     $('f_title').value = '';
     $('f_due').value = '';
     $('f_notes').value = '';
-    // pre-select the project we're currently browsing, if any real project
-    // is in view; leave blank (未分類) otherwise
-    $('f_project').value = (currentProjectId && currentProjectId !== 'all' && currentProjectId !== UNASSIGNED_PROJECT_ID)
-      ? currentProjectId : '';
+    // "新增待辦" is now a single global button (no more "currently browsed
+    // project" to default into) — leave blank (未分類) unless editing an
+    // existing task, which fills this in separately in openEditDialog().
+    $('f_project').value = '';
     currentPhotos = [];
     currentChecklist = [];
     currentProcureItems = [];
@@ -2066,6 +2103,11 @@
     if(!confirm('確定要刪除這個待辦事項嗎？此動作無法復原。')) return;
     var t = tasksById[id];
     var title = t ? t.title : '';
+    // this task's inline detail (if open) and its live comment subscription
+    // are about to become meaningless — tear them down along with it
+    delete expandedTasks[id];
+    if(commentUnsubs[id]){ commentUnsubs[id](); delete commentUnsubs[id]; }
+    delete commentsByTaskId[id];
     try{
       await firestore.collection('tasks').doc(id).delete();
       firestore.collection('completions').doc(id).delete().catch(function(){});
@@ -2085,9 +2127,10 @@
 
   // ---------- export ----------
   var STATUS_LABEL = { overdue:'已逾期', soon:'即將到期', upcoming:'待處理', undated:'未排定日期', done:'已完成' };
-  // Exports exactly what's currently on screen (lastFilteredTasks is set by
-  // render() every time filters/search/project selection change), so
-  // narrowing to e.g. "本週到期" first and then exporting exports just that.
+  // Exports whatever currently matches the search/status/type filters,
+  // across every 案件 at once (lastFilteredTasks is refreshed by
+  // renderTree() on every filter change), regardless of which 案件
+  // sections happen to be expanded on screen right now.
   function exportExcel(){
     if(typeof XLSX === 'undefined'){
       alert('Excel 匯出功能需要連線載入外部套件，目前無法使用（可能是網路問題）。');
@@ -2114,8 +2157,7 @@
     var ws = XLSX.utils.json_to_sheet(rows);
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '待辦清單');
-    var label = projectTitleFor(currentProjectId).replace(/[\\/:*?"<>|]/g, '');
-    XLSX.writeFile(wb, '代辦板_'+label+'_'+todayStr()+'.xlsx');
+    XLSX.writeFile(wb, '代辦板_'+todayStr()+'.xlsx');
   }
   function exportPrint(){ window.print(); }
 
@@ -2129,14 +2171,6 @@
     $('editDialogClose').addEventListener('click', function(){ editDialog.close(); });
     $('cancelEditBtn').addEventListener('click', function(){ editDialog.close(); });
     $('saveTaskBtn').addEventListener('click', saveTask);
-    $('detailClose').addEventListener('click', function(){ detailDialog.close(); });
-    // Covers every way the detail dialog can close (✕, backdrop click,
-    // Escape) so the comments listener never keeps running for a task
-    // whose detail view isn't on screen any more.
-    detailDialog.addEventListener('close', function(){
-      if(unsubComments){ unsubComments(); unsubComments = null; }
-      currentDetailTaskId = null;
-    });
     $('completeDialogClose').addEventListener('click', function(){ completeDialog.close(); });
     $('completeCancelBtn').addEventListener('click', function(){ completeDialog.close(); });
     $('completeConfirmBtn').addEventListener('click', confirmComplete);
@@ -2167,7 +2201,6 @@
     });
     $('activityBtn').addEventListener('click', openActivityLog);
     $('activityDialogClose').addEventListener('click', function(){ activityDialog.close(); });
-    $('backToProjectsBtn').addEventListener('click', function(){ showProjectsView(); });
 
     document.querySelectorAll('.type-toggle button').forEach(function(b){
       b.addEventListener('click', function(){ toggleType(b.dataset.type); });
@@ -2196,15 +2229,15 @@
       b.addEventListener('click', function(){
         filters.status = b.dataset.val;
         $('statusSeg').querySelectorAll('button').forEach(function(x){ x.classList.toggle('active', x===b); });
-        render();
+        renderTree();
       });
     });
-    $('typeFilter').addEventListener('change', function(){ filters.type = this.value; render(); });
+    $('typeFilter').addEventListener('change', function(){ filters.type = this.value; renderTree(); });
     $('exportExcelBtn').addEventListener('click', exportExcel);
     $('exportPrintBtn').addEventListener('click', exportPrint);
-    $('searchInput').addEventListener('input', function(){ filters.q = this.value; render(); });
+    $('searchInput').addEventListener('input', function(){ filters.q = this.value; renderTree(); });
 
-    [editDialog, detailDialog, completeDialog, moveDialog, duplicateDialog, usersDialog, projectsDialog, activityDialog, lightbox].forEach(function(dlg){
+    [editDialog, completeDialog, moveDialog, duplicateDialog, usersDialog, projectsDialog, activityDialog, lightbox].forEach(function(dlg){
       dlg.addEventListener('click', function(e){
         // A real backdrop click should close the dialog; a click on
         // content inside it should not. We used to gate this purely on
